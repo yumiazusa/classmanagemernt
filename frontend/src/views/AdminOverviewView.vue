@@ -28,8 +28,8 @@
             <strong>{{ overview.admin_count }}</strong>
           </div>
           <div class="stat-card">
-            <span>实验总数</span>
-            <strong>{{ overview.experiment_count }}</strong>
+            <span>课程总数</span>
+            <strong>{{ overview.course_count ?? overview.experiment_count }}</strong>
           </div>
           <div class="stat-card good">
             <span>启用账号数</span>
@@ -44,7 +44,7 @@
             <strong>{{ overview.recent_created_users_count }}</strong>
           </div>
           <div class="stat-card soft">
-            <span>近7天提交数</span>
+            <span>近7天任务提交</span>
             <strong>{{ overview.recent_submission_count }}</strong>
           </div>
         </div>

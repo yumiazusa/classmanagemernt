@@ -51,7 +51,7 @@ function resolveRedirectTarget(userRole) {
   if (userRole?.role === "admin") {
     return "/admin";
   }
-  return userRole?.role === "teacher" ? "/teacher/experiments" : "/dashboard";
+  return userRole?.role === "teacher" ? "/teacher/courses" : "/courses";
 }
 
 async function handleLogin() {

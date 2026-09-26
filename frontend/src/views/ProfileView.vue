@@ -93,7 +93,7 @@ const homePath = computed(() => {
   if (user.value?.role === "admin") {
     return "/admin";
   }
-  return user.value?.role === "teacher" ? "/teacher/experiments" : "/dashboard";
+  return user.value?.role === "teacher" ? "/teacher/courses" : "/courses";
 });
 
 const canEditProfile = computed(() => ["teacher", "admin"].includes(user.value?.role || ""));

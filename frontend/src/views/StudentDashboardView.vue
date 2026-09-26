@@ -2,7 +2,7 @@
   <section class="dashboard-page">
     <article class="card hero-card">
       <h2>我的主页</h2>
-      <p>查看个人信息、实验进度与最近活动。</p>
+      <p>查看个人信息、课程任务进度与最近活动。</p>
     </article>
 
     <article class="card" v-if="isLoading">正在加载个人中心数据...</article>
@@ -42,38 +42,36 @@
         <h3>进度概览</h3>
         <div class="summary-grid">
           <div class="summary-item">
-            <span>实验总数</span>
-            <strong>{{ dashboard.summary.total_experiments }}</strong>
+            <span>课程数</span>
+            <strong>{{ dashboard.summary.total_courses }}</strong>
           </div>
           <div class="summary-item">
-            <span>已提交</span>
+            <span>任务总数</span>
+            <strong>{{ dashboard.summary.total_tasks }}</strong>
+          </div>
+          <div class="summary-item">
+            <span>已提交任务</span>
             <strong>{{ dashboard.summary.submitted_count }}</strong>
           </div>
           <div class="summary-item">
-            <span>已通过</span>
-            <strong>{{ dashboard.summary.passed_count }}</strong>
-          </div>
-          <div class="summary-item highlight">
-            <span>未完成</span>
+            <span>待完成</span>
             <strong>{{ unfinishedCount }}</strong>
           </div>
         </div>
         <p class="summary-hint">
-          未完成 = 实验总数 - 已通过（当前：{{ dashboard.summary.total_experiments }} - {{ dashboard.summary.passed_count }}）
-        </p>
-        <p class="summary-hint">
-          待批阅 {{ dashboard.summary.pending_count }}，未通过 {{ dashboard.summary.failed_count }}，未开始
+          已批阅 {{ dashboard.summary.reviewed_count }}，已退回 {{ dashboard.summary.returned_count }}，待批阅
+          {{ dashboard.summary.pending_count }}，未开始
           {{ dashboard.summary.not_started_count }}
         </p>
       </article>
 
       <article class="card">
         <div class="section-head">
-          <h3>最近实验</h3>
-          <RouterLink class="exp-link" to="/experiments">进入实验列表</RouterLink>
+          <h3>最近任务</h3>
+          <RouterLink class="exp-link" to="/courses">进入我的课程</RouterLink>
         </div>
 
-        <p v-if="dashboard.recent_items.length === 0" class="empty-text">暂无最近实验记录，先去实验列表开始练习吧。</p>
+        <p v-if="dashboard.recent_items.length === 0" class="empty-text">暂无最近任务记录，先去我的课程开始学习吧。</p>
 
         <div v-else class="recent-list">
           <article v-for="item in dashboard.recent_items" :key="item.experiment_id" class="recent-item">
@@ -84,11 +82,11 @@
             <div class="status-row">
               <span class="badge status">状态：{{ latestStatusLabel(item.latest_status) }}</span>
               <span :class="['badge', 'review', item.review_status]">批阅：{{ reviewStatusLabel(item.review_status) }}</span>
-              <span class="badge mode">{{ modeLabel(item.interaction_mode) }}</span>
+              <span class="badge mode">{{ taskTypeLabel(item.task_type) }}</span>
             </div>
             <div class="actions">
-              <RouterLink class="btn primary" :to="continuePath(item)">继续实验</RouterLink>
-              <RouterLink class="btn plain" :to="`/docs?experiment_id=${item.experiment_id}`">查看说明</RouterLink>
+              <RouterLink class="btn primary" :to="`/tasks/${item.task_id}`">继续任务</RouterLink>
+              <RouterLink class="btn plain" :to="`/courses/${item.course_id}`">查看课程</RouterLink>
             </div>
           </article>
         </div>
@@ -101,6 +99,7 @@
 import { computed, onMounted, ref } from "vue";
 
 import { getStudentDashboard } from "../api/student";
+import { platformConfig } from "../config/platform";
 import { formatApiDateTime } from "../utils/datetime";
 
 const dashboard = ref(null);
@@ -112,7 +111,7 @@ const unfinishedCount = computed(() => {
   if (!summary) {
     return 0;
   }
-  return Math.max((summary.total_experiments || 0) - (summary.passed_count || 0), 0);
+  return Math.max((summary.total_tasks || 0) - (summary.submitted_count || 0), 0);
 });
 
 function formatTime(value) {
@@ -137,24 +136,17 @@ function latestStatusLabel(status) {
 }
 
 function reviewStatusLabel(status) {
-  if (status === "passed") {
-    return "通过";
+  if (status === "reviewed") {
+    return "已批阅";
   }
-  if (status === "failed") {
-    return "未通过";
+  if (status === "returned") {
+    return "已退回";
   }
   return "待批阅";
 }
 
-function modeLabel(mode) {
-  return mode === "guided_template" ? "引导式模板" : "原生模式";
-}
-
-function continuePath(item) {
-  if (item?.interaction_mode === "guided_template") {
-    return `/guided-experiment?experiment_id=${item.experiment_id}`;
-  }
-  return `/editor?experiment_id=${item.experiment_id}`;
+function taskTypeLabel(type) {
+  return platformConfig.taskTypeLabels[type] || type || "-";
 }
 
 async function loadDashboard() {

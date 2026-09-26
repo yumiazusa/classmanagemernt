@@ -1,9 +1,6 @@
 from datetime import datetime
-from typing import Any
-
 from pydantic import BaseModel, Field
 
-from app.schemas.experiment import ClassDeadlineOverride, InteractionModeType
 from app.schemas.user import RoleType
 
 
@@ -12,6 +9,7 @@ class AdminOverviewRead(BaseModel):
     student_count: int
     teacher_count: int
     admin_count: int
+    course_count: int = 0
     experiment_count: int
     enabled_user_count: int
     disabled_user_count: int
@@ -164,96 +162,4 @@ class AdminUpdateUserInfoRequest(BaseModel):
 
 class AdminUpdateUserInfoResponse(BaseModel):
     user: AdminUserItem
-    message: str
-
-
-class AdminExperimentItem(BaseModel):
-    experiment_id: int
-    title: str
-    slug: str
-    description: str | None
-    instruction_content: str | None
-    starter_code: str | None
-    interaction_mode: InteractionModeType
-    template_type: str | None
-    template_schema: dict[str, Any] | None
-    code_template: str | None
-    import_config: dict[str, Any] | None
-    allow_edit_generated_code: bool
-    sort_order: int
-    is_active: bool
-    is_published: bool
-    open_at: datetime | None
-    due_at: datetime | None
-    class_deadlines: dict[str, ClassDeadlineOverride] | None = None
-    updated_at: datetime
-    created_at: datetime
-
-
-class AdminExperimentPage(BaseModel):
-    items: list[AdminExperimentItem]
-    total: int
-    page: int
-    page_size: int
-    total_pages: int
-
-
-class AdminExperimentCreateRequest(BaseModel):
-    title: str = Field(min_length=1, max_length=200)
-    slug: str = Field(min_length=1, max_length=120)
-    description: str | None = None
-    instruction_content: str | None = None
-    starter_code: str | None = None
-    interaction_mode: InteractionModeType = "native_editor"
-    template_type: str | None = None
-    template_schema: dict[str, Any] | None = None
-    code_template: str | None = None
-    import_config: dict[str, Any] | None = None
-    allow_edit_generated_code: bool = True
-    sort_order: int = 0
-    is_active: bool = True
-    is_published: bool = False
-    open_at: datetime | None = None
-    due_at: datetime | None = None
-    class_deadlines: dict[str, ClassDeadlineOverride] | None = None
-
-
-class AdminExperimentConfigImportRequest(AdminExperimentCreateRequest):
-    pass
-
-
-class AdminExperimentConfigImportResponse(BaseModel):
-    action: str
-    message: str
-    experiment: AdminExperimentItem
-
-
-class AdminExperimentUpdateRequest(BaseModel):
-    title: str | None = Field(default=None, min_length=1, max_length=200)
-    slug: str | None = Field(default=None, min_length=1, max_length=120)
-    description: str | None = None
-    instruction_content: str | None = None
-    starter_code: str | None = None
-    interaction_mode: InteractionModeType | None = None
-    template_type: str | None = None
-    template_schema: dict[str, Any] | None = None
-    code_template: str | None = None
-    import_config: dict[str, Any] | None = None
-    allow_edit_generated_code: bool | None = None
-    sort_order: int | None = None
-    is_active: bool | None = None
-    is_published: bool | None = None
-    open_at: datetime | None = None
-    due_at: datetime | None = None
-    class_deadlines: dict[str, ClassDeadlineOverride] | None = None
-
-
-class AdminExperimentStatusUpdateResponse(BaseModel):
-    experiment_id: int
-    is_active: bool
-    message: str
-
-
-class AdminExperimentDeleteResponse(BaseModel):
-    experiment_id: int
     message: str

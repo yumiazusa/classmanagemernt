@@ -60,11 +60,11 @@
         <div class="form-grid">
           <label class="field">
             <span>标题</span>
-            <input v-model.trim="form.title" type="text" placeholder="例如：Python基础" />
+            <input v-model.trim="form.title" type="text" placeholder="例如：课程配置说明" />
           </label>
           <label class="field">
             <span>slug</span>
-            <input v-model.trim="form.slug" type="text" placeholder="例如：python-basic" />
+            <input v-model.trim="form.slug" type="text" placeholder="例如：course-config-guide" />
           </label>
           <label class="field">
             <span>分类</span>

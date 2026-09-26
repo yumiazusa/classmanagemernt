@@ -5,8 +5,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.security import get_password_hash
-from app.models.code_submission import CodeSubmission
-from app.models.experiment import Experiment
+from app.models.course import Course, TaskSubmission
 from app.models.user import User
 
 VALID_ROLE_FILTERS = {"student", "teacher", "admin"}
@@ -20,7 +19,7 @@ def get_overview_stats(db: Session) -> dict:
     teacher_count = db.execute(select(func.count(User.id)).where(User.role == "teacher")).scalar_one() or 0
     admin_count = db.execute(select(func.count(User.id)).where(User.role == "admin")).scalar_one() or 0
 
-    experiment_count = db.execute(select(func.count(Experiment.id))).scalar_one() or 0
+    course_count = db.execute(select(func.count(Course.id))).scalar_one() or 0
 
     enabled_user_count = db.execute(select(func.count(User.id)).where(User.is_enabled.is_(True))).scalar_one() or 0
     disabled_user_count = db.execute(select(func.count(User.id)).where(User.is_enabled.is_(False))).scalar_one() or 0
@@ -29,7 +28,7 @@ def get_overview_stats(db: Session) -> dict:
         db.execute(select(func.count(User.id)).where(User.created_at >= since)).scalar_one() or 0
     )
     recent_submission_count = (
-        db.execute(select(func.count(CodeSubmission.id)).where(CodeSubmission.created_at >= since)).scalar_one() or 0
+        db.execute(select(func.count(TaskSubmission.id)).where(TaskSubmission.created_at >= since)).scalar_one() or 0
     )
 
     return {
@@ -37,7 +36,8 @@ def get_overview_stats(db: Session) -> dict:
         "student_count": int(student_count),
         "teacher_count": int(teacher_count),
         "admin_count": int(admin_count),
-        "experiment_count": int(experiment_count),
+        "course_count": int(course_count),
+        "experiment_count": int(course_count),
         "enabled_user_count": int(enabled_user_count),
         "disabled_user_count": int(disabled_user_count),
         "recent_created_users_count": int(recent_created_users_count),

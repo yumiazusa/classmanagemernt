@@ -58,7 +58,7 @@ function resolveDefaultHome(role) {
   if (role === "admin") {
     return "/admin";
   }
-  return role === "teacher" ? "/teacher/experiments" : "/dashboard";
+  return role === "teacher" ? "/teacher/courses" : "/courses";
 }
 
 async function handleSubmit() {

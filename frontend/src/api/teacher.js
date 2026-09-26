@@ -1,63 +1,5 @@
 import request from "./request";
 
-export async function getTeacherExperimentOverview() {
-  const { data } = await request.get("/teacher/experiments/overview");
-  return data;
-}
-
-export async function getTeacherExperimentStudents(experimentId, params = {}) {
-  const { data } = await request.get(`/teacher/experiments/${experimentId}/students`, { params });
-  return data;
-}
-
-export async function exportTeacherExperimentResults(experimentId, params = {}) {
-  const response = await request.get(`/teacher/experiments/${experimentId}/export`, {
-    params,
-    responseType: "blob",
-  });
-  return response.data;
-}
-
-export async function getTeacherExperimentClassSummary(experimentId) {
-  const { data } = await request.get(`/teacher/experiments/${experimentId}/class-summary`);
-  return data;
-}
-
-export async function updateTeacherExperimentSettings(experimentId, payload) {
-  const { data } = await request.patch(`/teacher/experiments/${experimentId}/settings`, payload);
-  return data;
-}
-
-export async function getTeacherStudentHistory(experimentId, userId) {
-  const { data } = await request.get(`/teacher/experiments/${experimentId}/students/${userId}/history`);
-  return data;
-}
-
-export async function getTeacherSubmissionDetail(submissionId) {
-  const { data } = await request.get(`/teacher/submissions/${submissionId}`);
-  return data;
-}
-
-export async function reviewTeacherSubmission(submissionId, payload) {
-  const { data } = await request.post(`/teacher/submissions/${submissionId}/review`, payload);
-  return data;
-}
-
-export async function batchReviewTeacherSubmissions(payload) {
-  const { data } = await request.post("/teacher/submissions/batch-review", payload);
-  return data;
-}
-
-export async function returnTeacherStudentExperiment(experimentId, userId) {
-  const { data } = await request.post(`/teacher/experiments/${experimentId}/students/${userId}/return`);
-  return data;
-}
-
-export async function batchReturnTeacherStudents(experimentId, payload) {
-  const { data } = await request.post(`/teacher/experiments/${experimentId}/batch-return`, payload);
-  return data;
-}
-
 export async function importTeacherStudents(file) {
   const formData = new FormData();
   formData.append("file", file);
@@ -81,6 +23,11 @@ export async function getTeacherStudents(params = {}) {
   return data;
 }
 
+export async function createTeacherStudent(payload) {
+  const { data } = await request.post("/teacher/students", payload);
+  return data;
+}
+
 export async function getTeacherStudentClassOptions() {
   const { data } = await request.get("/teacher/students/class-options");
   return data;
@@ -98,6 +45,11 @@ export async function enableTeacherStudent(userId) {
 
 export async function disableTeacherStudent(userId) {
   const { data } = await request.post(`/teacher/students/${userId}/disable`);
+  return data;
+}
+
+export async function resetTeacherStudentPassword(userId, payload) {
+  const { data } = await request.post(`/teacher/students/${userId}/reset-password`, payload);
   return data;
 }
 

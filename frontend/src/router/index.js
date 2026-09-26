@@ -1,10 +1,12 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getAccessToken, getStoredCurrentUser, restoreSession } from "../api/auth";
-import ExperimentListView from "../views/ExperimentListView.vue";
-import CodeEditorView from "../views/CodeEditorView.vue";
+import { platformConfig } from "../config/platform";
+import CourseDetailView from "../views/CourseDetailView.vue";
+import CourseListView from "../views/CourseListView.vue";
 import DocsView from "../views/DocsView.vue";
-import TeacherExperimentOverviewView from "../views/TeacherExperimentOverviewView.vue";
-import TeacherExperimentDetailView from "../views/TeacherExperimentDetailView.vue";
+import TaskDetailView from "../views/TaskDetailView.vue";
+import TeacherCourseBoardView from "../views/TeacherCourseBoardView.vue";
+import TeacherSubmissionReviewView from "../views/TeacherSubmissionReviewView.vue";
 import TeacherStudentImportView from "../views/TeacherStudentImportView.vue";
 import TeacherStudentManageView from "../views/TeacherStudentManageView.vue";
 import LoginView from "../views/LoginView.vue";
@@ -16,9 +18,10 @@ import AdminUsersView from "../views/AdminUsersView.vue";
 import AdminTeachersView from "../views/AdminTeachersView.vue";
 import AdminAdminUsersView from "../views/AdminAdminUsersView.vue";
 import AdminDocsView from "../views/AdminDocsView.vue";
-import AdminExperimentsView from "../views/AdminExperimentsView.vue";
-import AdminExperimentFormView from "../views/AdminExperimentFormView.vue";
-import GuidedTemplateExperimentView from "../views/GuidedTemplateExperimentView.vue";
+import AdminCoursesView from "../views/AdminCoursesView.vue";
+import AdminClassStudentsView from "../views/AdminClassStudentsView.vue";
+import AdminClassStudentImportView from "../views/AdminClassStudentImportView.vue";
+import AdminClassesView from "../views/AdminClassesView.vue";
 
 const routes = [
   {
@@ -29,12 +32,18 @@ const routes = [
   },
   {
     path: "/",
-    redirect: "/experiments",
+    redirect: "/courses",
   },
   {
-    path: "/experiments",
-    name: "experiments",
-    component: ExperimentListView,
+    path: "/courses",
+    name: "courses",
+    component: CourseListView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/courses/:id",
+    name: "course-detail",
+    component: CourseDetailView,
     meta: { requiresAuth: true },
   },
   {
@@ -44,15 +53,9 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/editor",
-    name: "editor",
-    component: CodeEditorView,
-    meta: { requiresAuth: true },
-  },
-  {
-    path: "/guided-experiment",
-    name: "guided-experiment",
-    component: GuidedTemplateExperimentView,
+    path: "/tasks/:id",
+    name: "task-detail",
+    component: TaskDetailView,
     meta: { requiresAuth: true },
   },
   {
@@ -74,15 +77,15 @@ const routes = [
     meta: { requiresAuth: true, allowWhenMustChange: true },
   },
   {
-    path: "/teacher/experiments",
-    name: "teacher-experiments",
-    component: TeacherExperimentOverviewView,
+    path: "/teacher/courses",
+    name: "teacher-courses",
+    component: TeacherCourseBoardView,
     meta: { requiresAuth: true, requiresTeacher: true },
   },
   {
-    path: "/teacher/experiment-detail",
-    name: "teacher-experiment-detail",
-    component: TeacherExperimentDetailView,
+    path: "/teacher/submissions",
+    name: "teacher-submissions",
+    component: TeacherSubmissionReviewView,
     meta: { requiresAuth: true, requiresTeacher: true },
   },
   {
@@ -122,21 +125,27 @@ const routes = [
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
-    path: "/admin/experiments",
-    name: "admin-experiments",
-    component: AdminExperimentsView,
+    path: "/admin/courses",
+    name: "admin-courses",
+    component: AdminCoursesView,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
-    path: "/admin/experiments/new",
-    name: "admin-experiment-new",
-    component: AdminExperimentFormView,
+    path: "/admin/classes",
+    name: "admin-classes",
+    component: AdminClassesView,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
-    path: "/admin/experiments/:id/edit",
-    name: "admin-experiment-edit",
-    component: AdminExperimentFormView,
+    path: "/admin/classes/:classId/students",
+    name: "admin-class-students",
+    component: AdminClassStudentsView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/admin/classes/:classId/students/import",
+    name: "admin-class-student-import",
+    component: AdminClassStudentImportView,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
@@ -163,9 +172,9 @@ function resolveDefaultHome(user) {
   }
   const role = user?.role || "";
   if (role === "admin") {
-    return "/admin";
+    return platformConfig.defaultHomeByRole.admin;
   }
-  return role === "teacher" ? "/teacher/experiments" : "/dashboard";
+  return platformConfig.defaultHomeByRole[role] || "/courses";
 }
 
 function normalizeRedirectTarget(target) {

@@ -2,14 +2,15 @@
   <div class="layout">
     <header class="header">
       <div class="header-brand">
-        <h1>Big Data Edu Platform</h1>
+        <h1>{{ platformName }}</h1>
         <button v-if="!isLoginPage" type="button" class="mobile-menu-btn" @click.stop="toggleMobileNav">
           {{ mobileNavOpen ? "关闭" : "菜单" }}
         </button>
       </div>
       <div v-if="!isLoginPage" ref="navRef" :class="['header-right', mobileNavOpen ? 'open' : '']">
         <nav class="nav">
-          <RouterLink v-if="isStudent" class="nav-rect-btn" to="/dashboard">我的主页</RouterLink>
+          <RouterLink v-if="isStudent" class="nav-rect-btn" to="/courses">我的课程</RouterLink>
+          <RouterLink v-if="isStudent" class="nav-rect-btn" to="/dashboard">个人主页</RouterLink>
 
           <template v-if="isAdmin">
             <div class="admin-nav-group">
@@ -34,15 +35,15 @@
               <div class="nav-dropdown">
                 <button
                   type="button"
-                  :class="['nav-drop-trigger', openMenu === 'experiments' || experimentsGroupActive ? 'active' : '']"
-                  @click.stop="toggleMenu('experiments')"
+                  :class="['nav-drop-trigger', openMenu === 'courses' || coursesGroupActive ? 'active' : '']"
+                  @click.stop="toggleMenu('courses')"
                 >
-                  实验管理
-                  <span :class="['caret', openMenu === 'experiments' ? 'open' : '']">▾</span>
+                  教学管理
+                  <span :class="['caret', openMenu === 'courses' ? 'open' : '']">▾</span>
                 </button>
-                <div v-if="openMenu === 'experiments'" class="dropdown-menu">
-                  <RouterLink to="/admin/experiments" @click="handleNavLinkClick">后台实验管理</RouterLink>
-                  <RouterLink to="/experiments" @click="handleNavLinkClick">实验列表</RouterLink>
+                <div v-if="openMenu === 'courses'" class="dropdown-menu">
+                  <RouterLink to="/admin/classes" @click="handleNavLinkClick">班级管理</RouterLink>
+                  <RouterLink to="/admin/courses" @click="handleNavLinkClick">课程管理</RouterLink>
                 </div>
               </div>
 
@@ -52,24 +53,25 @@
                   :class="['nav-drop-trigger', openMenu === 'docs' || docsGroupActive ? 'active' : '']"
                   @click.stop="toggleMenu('docs')"
                 >
-                  文档管理
+                  资料管理
                   <span :class="['caret', openMenu === 'docs' ? 'open' : '']">▾</span>
                 </button>
                 <div v-if="openMenu === 'docs'" class="dropdown-menu">
-                  <RouterLink to="/admin/docs" @click="handleNavLinkClick">后台文档管理</RouterLink>
-                  <RouterLink to="/docs" @click="handleNavLinkClick">技术文档</RouterLink>
+                  <RouterLink to="/admin/docs" @click="handleNavLinkClick">平台文档管理</RouterLink>
+                  <RouterLink to="/docs" @click="handleNavLinkClick">平台资料</RouterLink>
                 </div>
               </div>
             </div>
           </template>
 
           <template v-else>
-            <RouterLink class="nav-rect-btn" to="/experiments" @click="handleNavLinkClick">实验列表</RouterLink>
-            <RouterLink class="nav-rect-btn" to="/docs" @click="handleNavLinkClick">技术文档</RouterLink>
+            <RouterLink class="nav-rect-btn" to="/courses" @click="handleNavLinkClick">我的课程</RouterLink>
+            <RouterLink class="nav-rect-btn" to="/docs" @click="handleNavLinkClick">平台资料</RouterLink>
           </template>
 
-          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/experiments" @click="handleNavLinkClick">教师看板</RouterLink>
+          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/courses" @click="handleNavLinkClick">课程看板</RouterLink>
           <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/students" @click="handleNavLinkClick">学生管理</RouterLink>
+          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/submissions" @click="handleNavLinkClick">提交批阅</RouterLink>
         </nav>
         <div v-if="isLoggedIn" class="session-area">
           <div class="account-dropdown">
@@ -102,6 +104,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { getAccessToken, getCurrentUserProfile, getStoredCurrentUser, logout } from "./api/auth";
+import { platformConfig } from "./config/platform";
 
 const route = useRoute();
 const router = useRouter();
@@ -117,14 +120,15 @@ const navRef = ref(null);
 const openMenu = ref("");
 const mobileNavOpen = ref(false);
 const usersGroupActive = computed(() => ["/admin/users", "/admin/teachers", "/admin/admin-users"].includes(route.path));
-const experimentsGroupActive = computed(() => route.path === "/admin/experiments" || route.path === "/experiments");
 const docsGroupActive = computed(() => route.path === "/admin/docs" || route.path === "/docs");
+const coursesGroupActive = computed(() => route.path.startsWith("/admin/courses") || route.path.startsWith("/admin/classes") || route.path.startsWith("/courses"));
+const platformName = platformConfig.platformName;
 const userLabel = computed(() => {
   if (!currentUser.value) {
     return "";
   }
   const name = currentUser.value.full_name || currentUser.value.username || "用户";
-  const roleText = currentUser.value.role === "admin" ? "管理员" : currentUser.value.role === "teacher" ? "教师" : "学生";
+  const roleText = platformConfig.roleLabels[currentUser.value.role] || currentUser.value.role;
   const mustChangeHint = currentUser.value.must_change_password ? "，需改密" : "";
   return `${name}（${roleText}${mustChangeHint}）`;
 });

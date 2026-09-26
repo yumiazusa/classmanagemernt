@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Edu Code Platform API"
+    app_name: str = "Teaching Framework API"
     app_env: str = "development"
     app_host: str = "0.0.0.0"
     app_port: int = 8081
@@ -13,15 +13,10 @@ class Settings(BaseSettings):
     mysql_port: int = 3306
     mysql_user: str = "edu_user"
     mysql_password: str = "edu_password"
-    mysql_db: str = "edu_code_platform"
+    mysql_db: str = "teaching_framework"
     jwt_secret_key: str = "please-change-this-secret"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
-    code_run_timeout_seconds: int = 60
-    code_run_concurrency_limit: int = 8
-    code_run_queue_wait_seconds: int = 300
-    code_run_max_output_chars: int = 20000
-    code_run_temp_dir: str = "/tmp/edu_code_runner"
     cors_allow_origins: str = "*"
     cors_allow_methods: str = "*"
     cors_allow_headers: str = "*"

@@ -4,6 +4,8 @@ import pandas as pd
 from sqlalchemy.orm import Session
 
 from app.crud import crud_user
+from app.models.course import ClassGroup
+from app.services import student_management
 
 REQUIRED_COLUMNS = ("班级", "学号", "姓名")
 DEFAULT_PASSWORD = "123456"
@@ -27,7 +29,28 @@ def _normalize_cell(value: object) -> str:
     return text
 
 
-def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
+def _get_or_create_class_group(db: Session, class_name: str) -> ClassGroup:
+    class_group = db.query(ClassGroup).filter(ClassGroup.name == class_name).first()
+    if class_group:
+        return class_group
+    class_group = ClassGroup(name=class_name, is_active=True)
+    db.add(class_group)
+    db.flush()
+    return class_group
+
+
+def _ensure_class_member(db: Session, *, class_group_id: int, user_id: int) -> None:
+    student_management.ensure_class_member(db, class_group_id=class_group_id, user_id=user_id)
+
+
+def import_students_from_excel(
+    db: Session,
+    file_bytes: bytes,
+    *,
+    forced_class_name: str | None = None,
+    forced_class_group_id: int | None = None,
+    allowed_class_names: set[str] | None = None,
+) -> dict:
     if not file_bytes:
         raise ValueError("导入失败：文件为空")
     try:
@@ -41,12 +64,13 @@ def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
         if normalized and normalized not in normalized_column_map:
             normalized_column_map[normalized] = column
 
-    missing_columns = [column for column in REQUIRED_COLUMNS if column not in normalized_column_map]
+    required_columns = ("学号", "姓名") if forced_class_name else REQUIRED_COLUMNS
+    missing_columns = [column for column in required_columns if column not in normalized_column_map]
     if missing_columns:
         missing_text = "、".join(f"【{name}】" for name in missing_columns)
         raise ValueError(f"导入失败：缺少必要列{missing_text}")
 
-    class_column = normalized_column_map["班级"]
+    class_column = normalized_column_map.get("班级")
     student_no_column = normalized_column_map["学号"]
     full_name_column = normalized_column_map["姓名"]
 
@@ -59,13 +83,17 @@ def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
     seen_student_nos: set[str] = set()
 
     for index, row in enumerate(records, start=2):
-        class_name = _normalize_cell(row.get(class_column))
+        class_name = forced_class_name or _normalize_cell(row.get(class_column))
         student_no = _normalize_cell(row.get(student_no_column))
         full_name = _normalize_cell(row.get(full_name_column))
 
         if not class_name:
             skipped_count += 1
             failed_items.append({"row": index, "student_no": student_no, "reason": "班级为空"})
+            continue
+        if allowed_class_names is not None and class_name not in allowed_class_names:
+            skipped_count += 1
+            failed_items.append({"row": index, "student_no": student_no, "reason": "班级不在当前管理范围内"})
             continue
         if not student_no:
             skipped_count += 1
@@ -88,6 +116,8 @@ def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
                     existed_by_student_no.class_name = class_name
                     existed_by_student_no.full_name = full_name
                     db.add(existed_by_student_no)
+                    class_group = db.get(ClassGroup, forced_class_group_id) if forced_class_group_id else _get_or_create_class_group(db, class_name)
+                    _ensure_class_member(db, class_group_id=class_group.id, user_id=existed_by_student_no.id)
                     updated_count += 1
                     continue
 
@@ -109,10 +139,12 @@ def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
                     existed_by_username.class_name = class_name
                     existed_by_username.full_name = full_name
                     db.add(existed_by_username)
+                    class_group = db.get(ClassGroup, forced_class_group_id) if forced_class_group_id else _get_or_create_class_group(db, class_name)
+                    _ensure_class_member(db, class_group_id=class_group.id, user_id=existed_by_username.id)
                     updated_count += 1
                     continue
 
-                crud_user.create_student_by_import(
+                created = crud_user.create_student_by_import(
                     db,
                     username=student_no,
                     student_no=student_no,
@@ -120,6 +152,8 @@ def import_students_from_excel(db: Session, file_bytes: bytes) -> dict:
                     full_name=full_name,
                     default_password=DEFAULT_PASSWORD,
                 )
+                class_group = db.get(ClassGroup, forced_class_group_id) if forced_class_group_id else _get_or_create_class_group(db, class_name)
+                _ensure_class_member(db, class_group_id=class_group.id, user_id=created.id)
                 created_count += 1
         except Exception as exc:
             skipped_count += 1

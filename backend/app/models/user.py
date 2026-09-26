@@ -35,8 +35,8 @@ class User(Base):
         onupdate=func.now(),
         nullable=False,
     )
-    submissions: Mapped[list["CodeSubmission"]] = relationship(
+    task_submissions: Mapped[list["TaskSubmission"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
-        foreign_keys="CodeSubmission.user_id",
+        foreign_keys="TaskSubmission.user_id",
     )

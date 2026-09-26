@@ -5,51 +5,6 @@ export async function getAdminOverview() {
   return data;
 }
 
-export async function getAdminExperiments(params = {}) {
-  const { data } = await request.get("/admin/experiments", { params });
-  return data;
-}
-
-export async function createAdminExperiment(payload) {
-  const { data } = await request.post("/admin/experiments", payload);
-  return data;
-}
-
-export async function getAdminExperimentById(experimentId) {
-  const { data } = await request.get(`/admin/experiments/${experimentId}`);
-  return data;
-}
-
-export async function updateAdminExperiment(experimentId, payload) {
-  const { data } = await request.put(`/admin/experiments/${experimentId}`, payload);
-  return data;
-}
-
-export async function importAdminExperimentConfig(payload) {
-  const { data } = await request.post("/admin/experiments/import-config", payload);
-  return data;
-}
-
-export async function enableAdminExperiment(experimentId) {
-  const { data } = await request.post(`/admin/experiments/${experimentId}/enable`);
-  return data;
-}
-
-export async function disableAdminExperiment(experimentId) {
-  const { data } = await request.post(`/admin/experiments/${experimentId}/disable`);
-  return data;
-}
-
-export async function copyAdminExperiment(experimentId) {
-  const { data } = await request.post(`/admin/experiments/${experimentId}/copy`);
-  return data;
-}
-
-export async function deleteAdminExperiment(experimentId) {
-  const { data } = await request.delete(`/admin/experiments/${experimentId}`);
-  return data;
-}
-
 export async function getAdminAdminUsers(params = {}) {
   const { data } = await request.get("/admin/admin-users", { params });
   return data;
