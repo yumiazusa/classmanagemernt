@@ -135,11 +135,16 @@
         </div>
       </div>
     </article>
+    <PasswordResetDialog ref="passwordResetDialog" />
   </section>
 </template>
 
 <script setup>
+import PasswordResetDialog from "../components/PasswordResetDialog.vue";
+
 import { computed, onMounted, ref } from "vue";
+
+const passwordResetDialog = ref(null);
 
 const props = defineProps({
   api: { type: Object, required: true },
@@ -284,17 +289,6 @@ function clearSelection() {
   selectedUserIds.value = [];
 }
 
-function promptNewPassword() {
-  const value = window.prompt("请输入新密码（不少于6位）", "123456");
-  if (value === null) return null;
-  const cleaned = value.trim();
-  if (cleaned.length < 6) {
-    window.alert("密码长度不能少于 6 位");
-    return null;
-  }
-  return cleaned;
-}
-
 async function handleSingleEnable(item) {
   if (!window.confirm(`确认启用账号：${item.username}？`)) return;
   isActioning.value = true;
@@ -325,9 +319,14 @@ async function handleSingleDisable(item) {
   }
 }
 
-async function handleSingleResetPassword(item) {
-  const newPassword = promptNewPassword();
-  if (!newPassword || !window.confirm(`确认重置账号 ${item.username} 的密码？`)) return;
+function handleSingleResetPassword(item) {
+  passwordResetDialog.value.open({
+    target: `账号：${item.username}`,
+    onSubmit: (newPassword) => submitHandleSingleResetPassword(item, newPassword),
+  });
+}
+
+async function submitHandleSingleResetPassword(item, newPassword) {
   isActioning.value = true;
   resetActionMessage();
   try {
@@ -341,6 +340,7 @@ async function handleSingleResetPassword(item) {
     await loadStudents();
   } catch (error) {
     setActionMessage(`重置密码失败：${error.message}`, true);
+    throw error;
   } finally {
     isActioning.value = false;
   }
@@ -376,17 +376,25 @@ async function handleBatchDisable() {
   }
 }
 
-async function handleBatchResetPassword() {
-  const newPassword = promptNewPassword();
-  if (!newPassword || selectedUserIds.value.length === 0 || !window.confirm(`确认批量重置已选 ${selectedUserIds.value.length} 个账号密码？`)) return;
+function handleBatchResetPassword() {
+  const userIds = [...selectedUserIds.value];
+  if (userIds.length === 0) return;
+  passwordResetDialog.value.open({
+    target: `已选 ${userIds.length} 个学生账号将使用同一个新密码`,
+    onSubmit: (newPassword) => submitHandleBatchResetPassword(userIds, newPassword),
+  });
+}
+
+async function submitHandleBatchResetPassword(userIds, newPassword) {
   isActioning.value = true;
   resetActionMessage();
   try {
-    const result = await props.api.batchResetPassword({ user_ids: selectedUserIds.value, new_password: newPassword });
+    const result = await props.api.batchResetPassword({ user_ids: userIds, new_password: newPassword });
     setActionMessage(`已成功重置 ${result.success_count} 个账号密码，失败 ${result.failed_count} 个`);
     await loadStudents();
   } catch (error) {
     setActionMessage(`批量重置密码失败：${error.message}`, true);
+    throw error;
   } finally {
     isActioning.value = false;
   }

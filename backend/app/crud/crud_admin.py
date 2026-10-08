@@ -37,7 +37,6 @@ def get_overview_stats(db: Session) -> dict:
         "teacher_count": int(teacher_count),
         "admin_count": int(admin_count),
         "course_count": int(course_count),
-        "experiment_count": int(course_count),
         "enabled_user_count": int(enabled_user_count),
         "disabled_user_count": int(disabled_user_count),
         "recent_created_users_count": int(recent_created_users_count),

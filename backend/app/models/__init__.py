@@ -2,6 +2,7 @@ from app.models.course import (
     ClassGroup,
     ClassMember,
     Course,
+    CourseExperience,
     CourseClass,
     CourseModule,
     CourseResource,
@@ -9,13 +10,15 @@ from app.models.course import (
     CourseTeacher,
     TaskSubmission,
 )
-from app.models.doc import Doc
+from app.models.doc import CourseDoc, Doc
 from app.models.user import User
 
 __all__ = [
     "User",
     "Doc",
+    "CourseDoc",
     "Course",
+    "CourseExperience",
     "ClassGroup",
     "ClassMember",
     "CourseTeacher",

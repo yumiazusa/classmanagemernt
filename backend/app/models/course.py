@@ -25,8 +25,20 @@ class Course(Base):
 
     modules: Mapped[list["CourseModule"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     resources: Mapped[list["CourseResource"]] = relationship(back_populates="course", cascade="all, delete-orphan")
+    docs: Mapped[list["CourseDoc"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     course_teachers: Mapped[list["CourseTeacher"]] = relationship(back_populates="course", cascade="all, delete-orphan")
     course_classes: Mapped[list["CourseClass"]] = relationship(back_populates="course", cascade="all, delete-orphan")
+    experience: Mapped["CourseExperience | None"] = relationship(back_populates="course", uselist=False, cascade="all, delete-orphan")
+
+
+class CourseExperience(Base):
+    __tablename__ = "course_experiences"
+
+    course_id: Mapped[int] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"), primary_key=True)
+    experience_key: Mapped[str] = mapped_column(String(64), nullable=False, default="unlinked", server_default=text("'unlinked'"))
+    config: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+
+    course: Mapped["Course"] = relationship(back_populates="experience")
 
 
 class ClassGroup(Base):
@@ -164,11 +176,6 @@ class TaskSubmission(Base):
     content: Mapped[str | None] = mapped_column(Text, nullable=True)
     attachment_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     status: Mapped[str] = mapped_column(String(24), nullable=False, default="submitted", server_default=text("'submitted'"), index=True)
-    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    review_status: Mapped[str] = mapped_column(String(24), nullable=False, default="pending", server_default=text("'pending'"), index=True)
-    review_comment: Mapped[str | None] = mapped_column(Text, nullable=True)
-    reviewed_by: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
-    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(
@@ -177,4 +184,3 @@ class TaskSubmission(Base):
 
     task: Mapped["CourseTask"] = relationship(back_populates="submissions")
     user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="task_submissions")
-    reviewer: Mapped["User | None"] = relationship(foreign_keys=[reviewed_by])

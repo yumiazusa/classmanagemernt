@@ -4,10 +4,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_name: str = "Teaching Framework API"
+    app_name: str = "LETS Course Management API"
     app_env: str = "development"
     app_host: str = "0.0.0.0"
-    app_port: int = 8081
+    app_port: int = 8083
     app_debug: bool = True
     mysql_host: str = "127.0.0.1"
     mysql_port: int = 3306

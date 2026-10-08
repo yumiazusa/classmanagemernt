@@ -59,34 +59,31 @@
           </div>
         </div>
         <p class="summary-hint">
-          已批阅 {{ dashboard.summary.reviewed_count }}，已退回 {{ dashboard.summary.returned_count }}，待批阅
-          {{ dashboard.summary.pending_count }}，未开始
-          {{ dashboard.summary.not_started_count }}
+          未开始 {{ dashboard.summary.not_started_count }}
         </p>
       </article>
 
       <article class="card">
         <div class="section-head">
           <h3>最近任务</h3>
-          <RouterLink class="exp-link" to="/courses">进入我的课程</RouterLink>
+          <RouterLink class="course-link" to="/courses">进入我的课程</RouterLink>
         </div>
 
         <p v-if="dashboard.recent_items.length === 0" class="empty-text">暂无最近任务记录，先去我的课程开始学习吧。</p>
 
         <div v-else class="recent-list">
-          <article v-for="item in dashboard.recent_items" :key="item.experiment_id" class="recent-item">
+          <article v-for="item in dashboard.recent_items" :key="item.task_id" class="recent-item">
             <div class="recent-top">
               <h4>{{ item.title }}</h4>
               <span class="time-text">{{ formatTime(item.latest_updated_at) }}</span>
             </div>
             <div class="status-row">
               <span class="badge status">状态：{{ latestStatusLabel(item.latest_status) }}</span>
-              <span :class="['badge', 'review', item.review_status]">批阅：{{ reviewStatusLabel(item.review_status) }}</span>
               <span class="badge mode">{{ taskTypeLabel(item.task_type) }}</span>
             </div>
             <div class="actions">
               <RouterLink class="btn primary" :to="`/tasks/${item.task_id}`">继续任务</RouterLink>
-              <RouterLink class="btn plain" :to="`/courses/${item.course_id}`">查看课程</RouterLink>
+              <RouterLink class="btn plain" :to="`/courses/${item.course_id}/experience`">查看课程</RouterLink>
             </div>
           </article>
         </div>
@@ -133,16 +130,6 @@ function latestStatusLabel(status) {
     return "草稿";
   }
   return status || "-";
-}
-
-function reviewStatusLabel(status) {
-  if (status === "reviewed") {
-    return "已批阅";
-  }
-  if (status === "returned") {
-    return "已退回";
-  }
-  return "待批阅";
 }
 
 function taskTypeLabel(type) {
@@ -206,7 +193,7 @@ onMounted(() => {
 }
 
 .profile-link,
-.exp-link {
+.course-link {
   text-decoration: none;
   color: var(--brand-700);
   font-size: 14px;
@@ -308,21 +295,6 @@ onMounted(() => {
 .badge.status {
   background: var(--brand-soft-2);
   color: var(--accent-indigo-strong);
-}
-
-.badge.review.pending {
-  background: var(--warn-soft);
-  color: var(--warn-strong);
-}
-
-.badge.review.passed {
-  background: var(--success-soft);
-  color: var(--success-strong);
-}
-
-.badge.review.failed {
-  background: var(--danger-soft);
-  color: var(--danger-strong);
 }
 
 .badge.mode {

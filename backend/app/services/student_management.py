@@ -17,7 +17,7 @@ class StudentScope(NamedTuple):
     class_names: list[str] | None = None
 
 
-def teacher_student_scope(db: Session, *, teacher_id: int) -> StudentScope:
+def teacher_student_scope(db: Session, *, teacher_id: int, course_id: int | None = None) -> StudentScope:
     statement = (
         select(ClassGroup.id, ClassGroup.name)
         .join(CourseClass, CourseClass.class_group_id == ClassGroup.id)
@@ -25,9 +25,11 @@ def teacher_student_scope(db: Session, *, teacher_id: int) -> StudentScope:
         .where(CourseTeacher.teacher_id == teacher_id)
         .distinct()
     )
+    if course_id is not None:
+        statement = statement.where(CourseClass.course_id == course_id)
     rows = db.execute(statement).all()
     if not rows:
-        return StudentScope(class_group_ids=None, class_names=None)
+        return StudentScope(class_group_ids=[], class_names=[])
     return StudentScope(
         class_group_ids=[int(row.id) for row in rows],
         class_names=[row.name for row in rows if row.name],

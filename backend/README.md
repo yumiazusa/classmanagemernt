@@ -44,10 +44,14 @@ python -m app.db.init_db
 python -m app.db.init_db --seed-demo
 ```
 
+`--seed-demo` 幂等创建管理员、两名教师、八名学生、两个班级、两门未连接的示例课程及课程文档。`--reset-demo` 先清除非 `admin` 数据，再重建整套演示数据；保留现有 `admin` 的账号和密码。执行重置前先备份，仅用于本地或测试环境。新建演示账号首次登录需修改固定初始密码；课程需连接已注册模块后才能启用。
+
+生产环境使用 `python -m app.db.init_db --bootstrap-admin` 交互创建初始管理员，要求至少 12 位密码；已有 `admin` 不会被覆盖。
+
 ## 启动
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8083
 ```
 
 或：
@@ -70,9 +74,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
 - `GET /api/courses/{course_id}/tasks`
 - `GET /api/tasks/{task_id}`
 - `POST /api/tasks/{task_id}/submissions`
+- `GET /api/admin/course-experiences`（已接入课程模块；初始为空）
 - `GET /api/admin/courses`
 - `POST /api/admin/courses`
 - `PUT /api/admin/courses/{course_id}`
+- `GET /api/admin/courses/{course_id}/workspace`
 - `DELETE /api/admin/courses/{course_id}`
 - `POST /api/admin/courses/{course_id}/modules`
 - `POST /api/admin/courses/{course_id}/tasks`
@@ -81,8 +87,6 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
 - `PUT /api/admin/classes/{class_id}`
 - `GET /api/teacher/courses`
 - `GET /api/teacher/classes`
-- `GET /api/teacher/tasks/{task_id}/submissions`
-- `POST /api/teacher/submissions/{submission_id}/review`
 - `GET /api/teacher/students`
 - `POST /api/teacher/students/import`
 - `GET /api/admin/users`
@@ -93,6 +97,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
 ## 新表概览
 
 - `courses`
+- `course_experiences`（课程模块绑定；未绑定或旧键视为未连接）
 - `class_groups`
 - `class_members`
 - `course_teachers`

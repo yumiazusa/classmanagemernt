@@ -4,6 +4,7 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 
 from app.api.deps import CurrentTeacher, DBSession
+from app.crud import crud_course
 from app.schemas.teacher import (
     TeacherStudentAccountItem,
     TeacherStudentAccountPage,
@@ -28,8 +29,10 @@ from app.services import student_management
 router = APIRouter(prefix="/teacher", tags=["teacher"])
 
 
-def _teacher_scope(db: DBSession, teacher_user: CurrentTeacher) -> student_management.StudentScope:
-    return student_management.teacher_student_scope(db, teacher_id=teacher_user.id)
+def _teacher_scope(db: DBSession, teacher_user: CurrentTeacher, course_id: int | None = None) -> student_management.StudentScope:
+    if course_id is not None and not crud_course.teacher_has_course(db, course_id=course_id, teacher_id=teacher_user.id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
+    return student_management.teacher_student_scope(db, teacher_id=teacher_user.id, course_id=course_id)
 
 
 def _handle_sort_validation(sort_by: str, sort_order: str) -> None:
@@ -43,6 +46,7 @@ def _handle_sort_validation(sort_by: str, sort_order: str) -> None:
 def get_teacher_students(
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=10, ge=1, le=100),
     keyword: str = Query(default=""),
@@ -63,7 +67,7 @@ def get_teacher_students(
         is_enabled=is_enabled,
         sort_by=sort_by,
         sort_order=sort_order,
-        scope=_teacher_scope(db, teacher_user),
+        scope=_teacher_scope(db, teacher_user, course_id),
     )
     return TeacherStudentAccountPage(
         items=[TeacherStudentAccountItem.model_validate(item) for item in data["items"]],
@@ -75,8 +79,8 @@ def get_teacher_students(
 
 
 @router.get("/students/class-options", response_model=list[str])
-def get_teacher_student_class_options(db: DBSession, teacher_user: CurrentTeacher) -> list[str]:
-    return student_management.list_class_options(db, scope=_teacher_scope(db, teacher_user))
+def get_teacher_student_class_options(db: DBSession, teacher_user: CurrentTeacher, course_id: int | None = Query(default=None)) -> list[str]:
+    return student_management.list_class_options(db, scope=_teacher_scope(db, teacher_user, course_id))
 
 
 @router.post("/students", response_model=TeacherStudentAccountItem, status_code=status.HTTP_201_CREATED)
@@ -84,8 +88,9 @@ def create_teacher_student(
     payload: TeacherStudentCreateRequest,
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentAccountItem:
-    scope = _teacher_scope(db, teacher_user)
+    scope = _teacher_scope(db, teacher_user, course_id)
     allowed_class_names = set(scope.class_names) if scope.class_names is not None else None
     user, error = student_management.create_student_account(
         db,
@@ -113,6 +118,7 @@ def create_teacher_student(
 def export_teacher_students(
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
     keyword: str = Query(default=""),
     class_name: str = Query(default=""),
     student_no: str = Query(default=""),
@@ -129,7 +135,7 @@ def export_teacher_students(
         is_enabled=is_enabled,
         sort_by=sort_by,
         sort_order=sort_order,
-        scope=_teacher_scope(db, teacher_user),
+        scope=_teacher_scope(db, teacher_user, course_id),
     )
     file_bytes = build_student_accounts_export_bytes(rows)
     encoded_filename = quote(STUDENT_ACCOUNT_EXPORT_FILENAME)
@@ -141,16 +147,16 @@ def export_teacher_students(
 
 
 @router.post("/students/{user_id}/enable", response_model=TeacherStudentStatusUpdateResponse)
-def enable_teacher_student_account(user_id: int, db: DBSession, teacher_user: CurrentTeacher) -> TeacherStudentStatusUpdateResponse:
-    user, error = student_management.set_student_enabled(db, user_id=user_id, is_enabled=True, scope=_teacher_scope(db, teacher_user))
+def enable_teacher_student_account(user_id: int, db: DBSession, teacher_user: CurrentTeacher, course_id: int | None = Query(default=None)) -> TeacherStudentStatusUpdateResponse:
+    user, error = student_management.set_student_enabled(db, user_id=user_id, is_enabled=True, scope=_teacher_scope(db, teacher_user, course_id))
     if error or not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error or "学生账号不存在")
     return TeacherStudentStatusUpdateResponse(user_id=user.id, is_enabled=user.is_enabled, message="账号已启用")
 
 
 @router.post("/students/{user_id}/disable", response_model=TeacherStudentStatusUpdateResponse)
-def disable_teacher_student_account(user_id: int, db: DBSession, teacher_user: CurrentTeacher) -> TeacherStudentStatusUpdateResponse:
-    user, error = student_management.set_student_enabled(db, user_id=user_id, is_enabled=False, scope=_teacher_scope(db, teacher_user))
+def disable_teacher_student_account(user_id: int, db: DBSession, teacher_user: CurrentTeacher, course_id: int | None = Query(default=None)) -> TeacherStudentStatusUpdateResponse:
+    user, error = student_management.set_student_enabled(db, user_id=user_id, is_enabled=False, scope=_teacher_scope(db, teacher_user, course_id))
     if error or not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error or "学生账号不存在")
     return TeacherStudentStatusUpdateResponse(user_id=user.id, is_enabled=user.is_enabled, message="账号已停用")
@@ -162,11 +168,12 @@ def reset_teacher_student_password(
     payload: TeacherStudentPasswordResetRequest,
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentPasswordResetResponse:
     new_password = payload.new_password.strip()
     if len(new_password) < 6:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="新密码长度不能少于 6 位")
-    user, error = student_management.reset_student_password(db, user_id=user_id, new_password=new_password, scope=_teacher_scope(db, teacher_user))
+    user, error = student_management.reset_student_password(db, user_id=user_id, new_password=new_password, scope=_teacher_scope(db, teacher_user, course_id))
     if error or not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error or "学生账号不存在")
     return TeacherStudentPasswordResetResponse(user_id=user.id, must_change_password=True, message="密码已重置")
@@ -177,6 +184,7 @@ def batch_reset_teacher_students_password(
     payload: TeacherStudentBatchPasswordResetRequest,
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentBatchPasswordResetResponse:
     new_password = payload.new_password.strip()
     if len(new_password) < 6:
@@ -185,7 +193,7 @@ def batch_reset_teacher_students_password(
         db,
         user_ids=payload.user_ids,
         new_password=new_password,
-        scope=_teacher_scope(db, teacher_user),
+        scope=_teacher_scope(db, teacher_user, course_id),
     )
     return TeacherStudentBatchPasswordResetResponse(
         success_count=len(success_user_ids),
@@ -201,12 +209,13 @@ def batch_enable_teacher_students(
     payload: TeacherStudentBatchStatusRequest,
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentBatchStatusUpdateResponse:
     success_user_ids, failed_items = student_management.batch_set_student_enabled(
         db,
         user_ids=payload.user_ids,
         is_enabled=True,
-        scope=_teacher_scope(db, teacher_user),
+        scope=_teacher_scope(db, teacher_user, course_id),
     )
     return TeacherStudentBatchStatusUpdateResponse(
         success_count=len(success_user_ids),
@@ -222,12 +231,13 @@ def batch_disable_teacher_students(
     payload: TeacherStudentBatchStatusRequest,
     db: DBSession,
     teacher_user: CurrentTeacher,
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentBatchStatusUpdateResponse:
     success_user_ids, failed_items = student_management.batch_set_student_enabled(
         db,
         user_ids=payload.user_ids,
         is_enabled=False,
-        scope=_teacher_scope(db, teacher_user),
+        scope=_teacher_scope(db, teacher_user, course_id),
     )
     return TeacherStudentBatchStatusUpdateResponse(
         success_count=len(success_user_ids),
@@ -255,6 +265,7 @@ async def import_teacher_students(
     db: DBSession,
     teacher_user: CurrentTeacher,
     file: UploadFile = File(...),
+    course_id: int | None = Query(default=None),
 ) -> TeacherStudentImportResponse:
     filename = (file.filename or "").strip()
     if not filename:
@@ -262,7 +273,7 @@ async def import_teacher_students(
     if not filename.lower().endswith(".xlsx"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="导入失败：仅支持 .xlsx 文件")
     file_bytes = await file.read()
-    scope = _teacher_scope(db, teacher_user)
+    scope = _teacher_scope(db, teacher_user, course_id)
     allowed_class_names = set(scope.class_names) if scope.class_names is not None else None
     try:
         result = import_students_from_excel(db, file_bytes=file_bytes, allowed_class_names=allowed_class_names)

@@ -1,17 +1,17 @@
 <template>
   <section class="teacher-page">
     <article class="panel header-panel">
-      <h2>添加学生</h2>
-      <p>可以单个添加，也可以用 .xlsx 批量导入。教师只能添加到自己课程关联的班级。</p>
-      <RouterLink class="back-button" to="/teacher/students">返回学生管理</RouterLink>
+      <h2>{{ courseId ? `${courseTitle} · 添加学生` : "添加学生" }}</h2>
+      <p>可以单个添加，也可以用 .xlsx 批量导入。学生须属于你负责课程关联的班级。</p>
+      <RouterLink class="back-button" :to="courseId ? `/teacher/courses/${courseId}/students` : '/teacher/students'">返回学生管理</RouterLink>
     </article>
 
-    <article v-if="isRoleChecking" class="panel">正在验证教师权限...</article>
-    <article v-else-if="roleError" class="panel error">{{ roleError }}</article>
-    <article v-else-if="!isTeacher" class="panel error">仅教师可访问当前页面</article>
+    <article v-if="isLoadingCourse" class="panel">正在加载课程...</article>
+    <article v-else-if="courseError" class="panel error">{{ courseError }}</article>
 
     <StudentImportPanel
       v-else
+      :key="courseId"
       :api="importApi"
       title="单个添加或批量导入"
       hint="单个添加请选择班级；批量导入模板必须包含班级、学号、姓名。"
@@ -20,37 +20,41 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from "vue";
+import { computed, ref, watch } from "vue";
+import { useRoute } from "vue-router";
 
-import { getCurrentUserProfile } from "../api/auth";
+import { getTeacherCourse } from "../api/teacher-course";
 import { createTeacherStudent, downloadTeacherStudentImportTemplate, getTeacherStudentClassOptions, importTeacherStudents } from "../api/teacher";
 import StudentImportPanel from "../components/StudentImportPanel.vue";
 
-const isRoleChecking = ref(false);
-const roleError = ref("");
-const isTeacher = ref(false);
+const route = useRoute();
+const courseId = computed(() => route.params.id ? Number(route.params.id) : null);
+const courseTitle = ref("课程");
+const isLoadingCourse = ref(false);
+const courseError = ref("");
 const importApi = {
-  createOne: createTeacherStudent,
-  classOptions: getTeacherStudentClassOptions,
-  importFile: importTeacherStudents,
+  createOne: (payload) => createTeacherStudent(payload, courseId.value),
+  classOptions: () => getTeacherStudentClassOptions(courseId.value),
+  importFile: (file) => importTeacherStudents(file, courseId.value),
   downloadTemplate: downloadTeacherStudentImportTemplate,
 };
 
-async function verifyTeacherRole() {
-  isRoleChecking.value = true;
-  roleError.value = "";
-  try {
-    const user = await getCurrentUserProfile();
-    isTeacher.value = user?.role === "teacher";
-  } catch (error) {
-    isTeacher.value = false;
-    roleError.value = `权限验证失败：${error.message}`;
-  } finally {
-    isRoleChecking.value = false;
+watch(courseId, async () => {
+  isLoadingCourse.value = true;
+  courseError.value = "";
+  if (!courseId.value) {
+    courseTitle.value = "";
+    isLoadingCourse.value = false;
+    return;
   }
-}
-
-onMounted(verifyTeacherRole);
+  try {
+    courseTitle.value = (await getTeacherCourse(courseId.value)).title;
+  } catch (error) {
+    courseError.value = `课程加载失败：${error.message}`;
+  } finally {
+    isLoadingCourse.value = false;
+  }
+}, { immediate: true });
 </script>
 
 <style scoped>

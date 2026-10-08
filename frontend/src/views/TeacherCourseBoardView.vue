@@ -2,24 +2,27 @@
   <section class="page">
     <article class="panel hero">
       <div>
-        <h2>课程看板</h2>
-        <p>查看负责课程，并进入任务提交批阅。</p>
+        <h2>课程管理</h2>
+        <p>查看分配给你的课程，按课程管理学生与课程文档。</p>
       </div>
-      <RouterLink class="btn plain" to="/teacher/students">学生管理</RouterLink>
     </article>
-    <article v-if="isLoading" class="panel">正在加载课程看板...</article>
+    <article v-if="isLoading" class="panel">正在加载课程...</article>
     <article v-else-if="errorMessage" class="panel error">{{ errorMessage }}</article>
-    <article v-else-if="courses.length === 0" class="panel">暂无负责课程</article>
+    <article v-else-if="courses.length === 0" class="panel">暂无分配给你的课程</article>
     <div v-else class="grid">
       <article v-for="course in courses" :key="course.id" class="panel course-card">
         <h3>{{ course.title }}</h3>
-        <p>{{ course.summary || "暂无课程简介" }}</p>
         <div class="meta">
-          <span>{{ course.module_count }} 模块</span>
-          <span>{{ course.task_count }} 任务</span>
           <span>{{ course.class_count }} 班级</span>
+          <span>{{ canEnter(course) ? "已开放" : "未开放" }}</span>
         </div>
-        <RouterLink class="btn primary" :to="`/courses/${course.id}`">查看课程</RouterLink>
+        <div class="card-actions">
+          <RouterLink v-if="canEnter(course)" class="btn primary" :to="`/courses/${course.id}/experience`">进入课程</RouterLink>
+          <span v-else class="btn unavailable">课程模块暂不可进入</span>
+          <RouterLink class="btn plain" :to="`/teacher/courses/${course.id}/students`">学生管理</RouterLink>
+          <RouterLink class="btn plain" :to="`/teacher/courses/${course.id}/submissions`">提交批阅 · 开发中</RouterLink>
+          <RouterLink class="btn plain" :to="`/courses/${course.id}/docs`">文档阅读</RouterLink>
+        </div>
       </article>
     </div>
   </section>
@@ -29,10 +32,12 @@
 import { onMounted, ref } from "vue";
 
 import { getTeacherCourses } from "../api/teacher-course";
+import { courseExperiences } from "../course-experiences/registry";
 
 const courses = ref([]);
 const isLoading = ref(false);
 const errorMessage = ref("");
+const canEnter = (course) => course.is_active && course.status === "published" && Boolean(courseExperiences[course.experience_key]);
 
 async function loadCourses() {
   isLoading.value = true;
@@ -40,7 +45,7 @@ async function loadCourses() {
   try {
     courses.value = await getTeacherCourses();
   } catch (error) {
-    errorMessage.value = `课程看板加载失败：${error.message}`;
+    errorMessage.value = `课程加载失败：${error.message}`;
   } finally {
     isLoading.value = false;
   }
@@ -83,6 +88,7 @@ p {
   display: grid;
   gap: 12px;
 }
+.card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .meta {
   display: flex;
   flex-wrap: wrap;
@@ -112,6 +118,7 @@ p {
   background: var(--surface-2);
   color: var(--text-strong);
 }
+.unavailable { background: var(--surface-2); color: var(--text-muted); cursor: default; }
 .error {
   border-color: var(--danger-border);
   background: var(--danger-soft);

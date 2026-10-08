@@ -1,11 +1,13 @@
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.doc import Doc
+from app.models.doc import CourseDoc, Doc
 
 
-def list_public_docs(db: Session, *, keyword: str = "", category: str = "") -> list[Doc]:
+def list_public_docs(db: Session, *, keyword: str = "", category: str = "", include_admin_manual: bool = True) -> list[Doc]:
     statement = select(Doc).where(Doc.is_published.is_(True))
+    if not include_admin_manual:
+        statement = statement.where(Doc.category != "管理员手册")
 
     cleaned_keyword = keyword.strip()
     if cleaned_keyword:
@@ -53,13 +55,15 @@ def list_admin_docs(db: Session, *, keyword: str = "", category: str = "") -> li
     return list(db.execute(statement).scalars().all())
 
 
-def list_public_categories(db: Session) -> list[str]:
+def list_public_categories(db: Session, *, include_admin_manual: bool = True) -> list[str]:
     statement = (
         select(Doc.category)
         .where(Doc.is_published.is_(True), Doc.category.is_not(None), Doc.category != "")
         .group_by(Doc.category)
         .order_by(Doc.category.asc())
     )
+    if not include_admin_manual:
+        statement = statement.where(Doc.category != "管理员手册")
     return [str(item) for item in db.execute(statement).scalars().all()]
 
 
@@ -112,3 +116,19 @@ def delete_doc(db: Session, *, doc: Doc) -> None:
 def public_doc_count(db: Session) -> int:
     statement = select(func.count()).select_from(select(Doc.id).where(Doc.is_published.is_(True)).subquery())
     return int(db.execute(statement).scalar_one() or 0)
+
+
+def list_course_docs(db: Session, *, course_id: int, include_unpublished: bool = False) -> list[CourseDoc]:
+    statement = select(CourseDoc).where(CourseDoc.course_id == course_id)
+    if not include_unpublished:
+        statement = statement.where(CourseDoc.is_published.is_(True))
+    statement = statement.order_by(CourseDoc.sort_order.asc(), CourseDoc.id.asc())
+    return list(db.execute(statement).scalars().all())
+
+
+def get_course_doc(db: Session, *, course_id: int, doc_id: int) -> CourseDoc | None:
+    return db.execute(select(CourseDoc).where(CourseDoc.course_id == course_id, CourseDoc.id == doc_id)).scalar_one_or_none()
+
+
+def get_course_doc_by_slug(db: Session, *, course_id: int, slug: str) -> CourseDoc | None:
+    return db.execute(select(CourseDoc).where(CourseDoc.course_id == course_id, CourseDoc.slug == slug)).scalar_one_or_none()

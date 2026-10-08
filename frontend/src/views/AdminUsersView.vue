@@ -221,11 +221,16 @@
         </div>
       </div>
     </div>
+    <PasswordResetDialog ref="passwordResetDialog" />
   </section>
 </template>
 
 <script setup>
+import PasswordResetDialog from "../components/PasswordResetDialog.vue";
+
 import { computed, onMounted, reactive, ref } from "vue";
+
+const passwordResetDialog = ref(null);
 
 import { getStoredCurrentUser } from "../api/auth";
 import {
@@ -513,32 +518,26 @@ async function handleBatchDelete() {
   }
 }
 
-async function handleBatchResetPassword() {
-  actionMessage.value = "";
-  actionError.value = false;
+function handleBatchResetPassword() {
   if (selectedUserIds.value.length === 0) {
     actionMessage.value = "请先勾选要重置密码的用户";
     actionError.value = true;
     return;
   }
-  const raw = window.prompt(`请输入批量重置的新密码（至少6位）`, "123456");
-  if (raw === null) {
-    return;
-  }
-  const newPassword = raw.trim();
-  if (newPassword.length < 6) {
-    actionMessage.value = "新密码长度不能少于 6 位";
-    actionError.value = true;
-    return;
-  }
-  const confirmed = window.confirm(`确认批量重置 ${selectedUserIds.value.length} 个账号密码吗？`);
-  if (!confirmed) {
-    return;
-  }
+  const userIds = [...selectedUserIds.value];
+  passwordResetDialog.value.open({
+    target: `已选 ${selectedUserIds.value.length} 个账号将使用同一个新密码`,
+    onSubmit: (newPassword) => submitHandleBatchResetPassword(userIds, newPassword),
+  });
+}
+
+async function submitHandleBatchResetPassword(userIds, newPassword) {
+  actionMessage.value = "";
+  actionError.value = false;
   isLoading.value = true;
   try {
     const result = await batchResetAdminUserPasswords({
-      user_ids: selectedUserIds.value,
+      user_ids: userIds,
       new_password: newPassword,
     });
     actionMessage.value = `批量重置密码完成：成功 ${result.success_count}，失败 ${result.failed_count}`;
@@ -547,6 +546,7 @@ async function handleBatchResetPassword() {
   } catch (error) {
     actionMessage.value = `批量重置密码失败：${error.message}`;
     actionError.value = true;
+    throw error;
   } finally {
     isLoading.value = false;
   }
@@ -606,26 +606,16 @@ async function confirmRoleChange() {
   }
 }
 
-async function handleResetPassword(item) {
+function handleResetPassword(item) {
+  passwordResetDialog.value.open({
+    target: `账号：${item.username}`,
+    onSubmit: (newPassword) => submitHandleResetPassword(item, newPassword),
+  });
+}
+
+async function submitHandleResetPassword(item, newPassword) {
   actionMessage.value = "";
   actionError.value = false;
-
-  const raw = window.prompt(`请输入 ${item.username} 的新密码（至少6位）`, "123456");
-  if (raw === null) {
-    return;
-  }
-  const newPassword = raw.trim();
-  if (newPassword.length < 6) {
-    actionMessage.value = "新密码长度不能少于 6 位";
-    actionError.value = true;
-    return;
-  }
-
-  const confirmed = window.confirm(`确认将 ${item.username} 的密码重置为输入的新密码吗？`);
-  if (!confirmed) {
-    return;
-  }
-
   isLoading.value = true;
   try {
     await resetAdminUserPassword(item.user_id, { new_password: newPassword });
@@ -634,6 +624,7 @@ async function handleResetPassword(item) {
   } catch (error) {
     actionMessage.value = `重置密码失败：${error.message}`;
     actionError.value = true;
+    throw error;
   } finally {
     isLoading.value = false;
   }

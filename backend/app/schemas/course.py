@@ -6,7 +6,6 @@ from pydantic import BaseModel, ConfigDict, Field
 CourseStatus = Literal["draft", "published", "archived"]
 TaskType = Literal["reading", "assignment", "quiz", "file_upload", "text_response", "external_link", "custom"]
 SubmissionStatus = Literal["draft", "submitted"]
-ReviewStatus = Literal["pending", "reviewed", "returned", "passed", "failed"]
 
 
 class CourseBase(BaseModel):
@@ -20,19 +19,17 @@ class CourseBase(BaseModel):
     is_active: bool = True
 
 
-class CourseCreate(CourseBase):
+class CourseCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=200)
+    experience_key: str = Field(default="unlinked", pattern=r"^[a-z][a-z0-9_-]{0,63}$")
+    is_active: bool = False
     teacher_ids: list[int] = Field(default_factory=list)
     class_group_ids: list[int] = Field(default_factory=list)
 
 
 class CourseUpdate(BaseModel):
+    experience_key: str | None = Field(default=None, pattern=r"^[a-z][a-z0-9_-]{0,63}$")
     title: str | None = Field(default=None, min_length=1, max_length=200)
-    slug: str | None = Field(default=None, min_length=1, max_length=120)
-    summary: str | None = None
-    description: str | None = None
-    status: CourseStatus | None = None
-    cover_color: str | None = None
-    sort_order: int | None = None
     is_active: bool | None = None
     teacher_ids: list[int] | None = None
     class_group_ids: list[int] | None = None
@@ -40,6 +37,7 @@ class CourseUpdate(BaseModel):
 
 class CourseRead(CourseBase):
     id: int
+    experience_key: str = "unlinked"
     teacher_count: int = 0
     class_count: int = 0
     module_count: int = 0
@@ -55,6 +53,18 @@ class CoursePage(BaseModel):
     page: int
     page_size: int
     total_pages: int
+
+
+class CourseWorkspaceRead(BaseModel):
+    course: CourseRead
+    teacher_ids: list[int]
+    class_group_ids: list[int]
+
+
+class CourseExperienceOption(BaseModel):
+    key: str
+    label: str
+    description: str
 
 
 class ClassGroupCreate(BaseModel):
@@ -171,7 +181,6 @@ class CourseTaskRead(BaseModel):
     due_at: datetime | None
     latest_submission_id: int | None = None
     latest_submission_status: str | None = None
-    review_status: str | None = None
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
@@ -198,12 +207,6 @@ class TaskSubmissionCreate(BaseModel):
     status: SubmissionStatus = "submitted"
 
 
-class TaskSubmissionReviewUpdate(BaseModel):
-    review_status: ReviewStatus
-    score: int | None = None
-    review_comment: str | None = None
-
-
 class TaskSubmissionRead(BaseModel):
     id: int
     task_id: int
@@ -211,21 +214,7 @@ class TaskSubmissionRead(BaseModel):
     content: str | None
     attachment_url: str | None
     status: SubmissionStatus
-    score: int | None
-    review_status: ReviewStatus
-    review_comment: str | None
-    reviewed_by: int | None
-    reviewed_at: datetime | None
     version: int
     created_at: datetime
     updated_at: datetime
     model_config = ConfigDict(from_attributes=True)
-
-
-class TeacherSubmissionItem(TaskSubmissionRead):
-    username: str | None = None
-    full_name: str | None = None
-    student_no: str | None = None
-    class_name: str | None = None
-    task_title: str | None = None
-    course_title: str | None = None

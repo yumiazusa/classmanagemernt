@@ -1,124 +1,13 @@
-# 本地开发接手清单（无虚拟环境）
+# LETS V1.0 本地开发检查清单
 
-适用场景：直接使用本机 `python3`，不使用项目内 `.venv`，且暂不做 Git 管理。
+先阅读 [项目首页](../README.md) 与 [技术文档](TECHNICAL_V1.0.md)。当前默认后端端口为 8083，前端端口为 8082，数据库名为 `teaching_framework`。
 
-## 1. 后端（本机 Python）
+1. 按 `backend/.env.example` 创建 `backend/.env`，配置本地 MySQL 8 账号；在 `backend` 安装 Python 3.11+ 依赖。
+2. 运行 `python -m app.db.init_db --seed-demo` 创建两名教师、八名学生、两个班级、两门未连接的示例课程及课程文档。该命令可重复执行，不覆盖同名记录；如需替换现有数据，先备份后运行 `--reset-demo`，仅保留已有 `admin`。演示数据仅用于本地/测试库。
+3. 在 `backend` 执行 `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8083`，检查 `http://127.0.0.1:8083/health`。
+4. 在 `frontend` 执行 `npm ci`、`npm run dev`，打开 `http://127.0.0.1:8082`。Vite 默认将 `/api` 代理到 8083；后端地址不同则设置 `VITE_PROXY_TARGET`。
+5. 修改前端后执行 `npm run build`；修改后端后至少做模块导入、数据库初始化和对应接口的实际检查。
 
-在项目根目录执行：
+若本机没有 Node，可使用已有 Docker 容器：`docker exec e0c /bin/bash -lc 'cd /www/wwwroot/classmanagement/frontend && npm run build'`。这条命令只用于构建验证，实际启动地址取决于容器端口映射。
 
-```bash
-cd backend
-python3 --version
-python3 -m app.db.init_db
-python3 -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8081
-```
-
-检查点：
-
-- 终端看到 `Uvicorn running on http://0.0.0.0:8081`
-- 打开 `http://127.0.0.1:8081/health` 返回健康状态
-
-## 2. Node 环境补齐（本机缺 node/npm 时）
-
-当前机器未检测到 `node`/`npm`。可选两种方式：
-
-### 方式 A（推荐）：安装 nvm 后装 Node LTS
-
-安装并启用 nvm 后执行：
-
-```bash
-nvm install --lts
-nvm use --lts
-node -v
-npm -v
-```
-
-### 方式 B：安装 Node 官方 LTS 安装包
-
-安装完成后重新打开终端，执行：
-
-```bash
-node -v
-npm -v
-```
-
-目标版本：`Node >= 18`，`npm >= 9`。
-
-## 2.1 使用 Docker 容器里的 Node（当前环境）
-
-已确认容器信息：
-
-- 容器 ID：`e0c1464ef771`
-- Node：`v22.22.0`
-- npm：`10.9.4`
-- 项目路径（容器内）：`/www/wwwroot/pythonclass`
-
-进入容器：
-
-```bash
-docker exec -it e0c1464ef771 /bin/bash
-cd /www/wwwroot/pythonclass/frontend
-```
-
-安装与启动前端：
-
-```bash
-export VITE_PROXY_TARGET=http://host.docker.internal:8081
-npm install
-npm run dev -- --host 0.0.0.0 --port 8082
-```
-
-说明：当后端运行在宿主机（你本机 `python3`）时，容器内访问宿主机应使用 `host.docker.internal`，不要使用 `127.0.0.1`。此处端口与后端保持一致（当前为 `8081`）。
-
-在容器内做构建检查：
-
-```bash
-cd /www/wwwroot/pythonclass/frontend
-npm run build
-```
-
-## 3. 前端启动与构建检查
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-新终端执行构建检查：
-
-```bash
-cd frontend
-npm run build
-```
-
-检查点：
-
-- `npm run dev` 正常启动（默认 `http://127.0.0.1:8082` 或终端输出地址）
-- `npm run build` 成功，无报错退出
-- 若使用容器 Node，访问地址以你面板/NAT 映射后的地址为准
-
-## 4. 前后端联调检查
-
-先启动后端 `8081`，再启动前端 `8082`，然后检查：
-
-1. 打开前端页面可进入实验列表页
-2. 前端请求 `/api/*` 可被代理到后端（Vite 已配置）
-3. 打开浏览器开发者工具，确认无持续性 `401/500` 错误
-4. 最少完成一次登录、实验列表加载、代码运行或提交流程
-
-## 5. 常用排查命令
-
-```bash
-# 后端依赖是否可导入
-cd backend
-python3 - <<'PY'
-import fastapi, uvicorn, sqlalchemy, pymysql, pandas, openpyxl
-print("backend deps ok")
-PY
-
-# 前端依赖树与构建
-cd frontend
-npm ls --depth=0
-npm run build
-```
+生产部署见 [部署文档](DEPLOYMENT_V1.0.md)。

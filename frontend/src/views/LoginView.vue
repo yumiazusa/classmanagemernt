@@ -28,6 +28,7 @@ import { reactive, ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 
 import { getCurrentUser, login } from "../api/auth";
+import { platformConfig } from "../config/platform";
 
 const route = useRoute();
 const router = useRouter();
@@ -48,10 +49,7 @@ function resolveRedirectTarget(userRole) {
   if (redirect && redirect.startsWith("/") && !redirect.startsWith("/login")) {
     return redirect;
   }
-  if (userRole?.role === "admin") {
-    return "/admin";
-  }
-  return userRole?.role === "teacher" ? "/teacher/courses" : "/courses";
+  return platformConfig.defaultHomeByRole[userRole?.role] || platformConfig.defaultHomeByRole.student;
 }
 
 async function handleLogin() {

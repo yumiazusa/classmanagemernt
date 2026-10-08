@@ -4,14 +4,17 @@ from fastapi import APIRouter, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import Response
 
 from app.api.deps import CurrentAdmin, DBSession
-from app.crud import crud_course
-from app.models.course import ClassGroup
+from app.crud import crud_course, crud_doc
+from app.models.doc import CourseDoc
+from app.schemas.doc import CourseDocCreateRequest, CourseDocRead, CourseDocUpdateRequest
+from app.models.course import ClassGroup, CourseClass, CourseModule, CourseTeacher
 from app.schemas.course import (
     ClassGroupCreate,
     ClassGroupPage,
     ClassGroupRead,
     ClassGroupUpdate,
     CourseCreate,
+    CourseExperienceOption,
     CourseModuleCreate,
     CourseModuleRead,
     CoursePage,
@@ -20,7 +23,9 @@ from app.schemas.course import (
     CourseTaskRead,
     CourseTaskUpdate,
     CourseUpdate,
+    CourseWorkspaceRead,
 )
+from app.services.course_experiences import EXPERIENCES, validate_experience_key
 from app.schemas.teacher import (
     TeacherStudentAccountItem,
     TeacherStudentAccountPage,
@@ -40,6 +45,12 @@ from app.services.student_importer import import_students_from_excel
 from app.services.student_import_template import STUDENT_IMPORT_TEMPLATE_FILENAME, build_student_import_template_bytes
 
 router = APIRouter(prefix="/admin", tags=["admin-courses"])
+
+
+@router.get("/course-experiences", response_model=list[CourseExperienceOption])
+def list_course_experiences(admin_user: CurrentAdmin) -> list[CourseExperienceOption]:
+    _ = admin_user
+    return [CourseExperienceOption(**item) for item in EXPERIENCES.values()]
 
 
 def _get_class_or_404(db: DBSession, class_id: int) -> ClassGroup:
@@ -77,8 +88,9 @@ def list_admin_courses(
 @router.post("/courses", response_model=CourseRead, status_code=status.HTTP_201_CREATED)
 def create_admin_course(payload: CourseCreate, db: DBSession, admin_user: CurrentAdmin) -> CourseRead:
     _ = admin_user
-    if crud_course.get_course_by_slug(db, payload.slug.strip()):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="slug 已存在")
+    validate_experience_key(payload.experience_key)
+    if payload.is_active and payload.experience_key == "unlinked":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先连接课程模块再启用课程")
     created = crud_course.create_course(db, payload.model_dump())
     item = crud_course.get_course_read(db, course_id=created.id)
     return CourseRead.model_validate(item)
@@ -93,6 +105,21 @@ def get_admin_course(course_id: int, db: DBSession, admin_user: CurrentAdmin) ->
     return CourseRead.model_validate(item)
 
 
+@router.get("/courses/{course_id}/workspace", response_model=CourseWorkspaceRead)
+def get_admin_course_workspace(course_id: int, db: DBSession, admin_user: CurrentAdmin) -> CourseWorkspaceRead:
+    _ = admin_user
+    item = crud_course.get_course_read(db, course_id=course_id)
+    if not item:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
+    teacher_ids = [row[0] for row in db.query(CourseTeacher.teacher_id).filter(CourseTeacher.course_id == course_id).all()]
+    class_group_ids = [row[0] for row in db.query(CourseClass.class_group_id).filter(CourseClass.course_id == course_id).all()]
+    return CourseWorkspaceRead(
+        course=CourseRead.model_validate(item),
+        teacher_ids=teacher_ids,
+        class_group_ids=class_group_ids,
+    )
+
+
 @router.put("/courses/{course_id}", response_model=CourseRead)
 def update_admin_course(course_id: int, payload: CourseUpdate, db: DBSession, admin_user: CurrentAdmin) -> CourseRead:
     _ = admin_user
@@ -100,13 +127,85 @@ def update_admin_course(course_id: int, payload: CourseUpdate, db: DBSession, ad
     if not course:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
     update_payload = payload.model_dump(exclude_unset=True)
-    if "slug" in update_payload:
-        existed = crud_course.get_course_by_slug(db, update_payload["slug"].strip())
-        if existed and existed.id != course_id:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="slug 已存在")
+    if "experience_key" in update_payload:
+        validate_experience_key(update_payload["experience_key"])
+    current_key = crud_course.get_course_read(db, course_id)["experience_key"]
+    if update_payload.get("is_active", course.is_active) and update_payload.get("experience_key", current_key) == "unlinked":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="请先连接课程模块再启用课程")
+    if update_payload.get("is_active") is True:
+        update_payload["status"] = "published"
     crud_course.update_course(db, course, update_payload)
     item = crud_course.get_course_read(db, course_id=course_id)
     return CourseRead.model_validate(item)
+
+
+def _require_admin_course(db: DBSession, course_id: int) -> None:
+    if not crud_course.get_course(db, course_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
+
+
+def _clean_course_doc_payload(payload: dict) -> dict:
+    cleaned = payload.copy()
+    for field in ("title", "slug", "content"):
+        if field in cleaned:
+            if cleaned[field] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field} 不能为空")
+            cleaned[field] = cleaned[field].strip()
+            if not cleaned[field]:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field} 不能为空")
+    if "summary" in cleaned and cleaned["summary"] is not None:
+        cleaned["summary"] = cleaned["summary"].strip() or None
+    return cleaned
+
+
+@router.get("/courses/{course_id}/docs", response_model=list[CourseDocRead])
+def list_admin_course_docs(course_id: int, db: DBSession, admin_user: CurrentAdmin) -> list[CourseDocRead]:
+    _ = admin_user
+    _require_admin_course(db, course_id)
+    return [CourseDocRead.model_validate(doc) for doc in crud_doc.list_course_docs(db, course_id=course_id, include_unpublished=True)]
+
+
+@router.post("/courses/{course_id}/docs", response_model=CourseDocRead, status_code=status.HTTP_201_CREATED)
+def create_admin_course_doc(course_id: int, payload: CourseDocCreateRequest, db: DBSession, admin_user: CurrentAdmin) -> CourseDocRead:
+    _ = admin_user
+    _require_admin_course(db, course_id)
+    cleaned = _clean_course_doc_payload(payload.model_dump())
+    if crud_doc.get_course_doc_by_slug(db, course_id=course_id, slug=cleaned["slug"]):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该课程的 slug 已存在")
+    doc = CourseDoc(course_id=course_id, **cleaned)
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return CourseDocRead.model_validate(doc)
+
+
+@router.put("/courses/{course_id}/docs/{doc_id}", response_model=CourseDocRead)
+def update_admin_course_doc(course_id: int, doc_id: int, payload: CourseDocUpdateRequest, db: DBSession, admin_user: CurrentAdmin) -> CourseDocRead:
+    _ = admin_user
+    doc = crud_doc.get_course_doc(db, course_id=course_id, doc_id=doc_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程文档不存在")
+    cleaned = _clean_course_doc_payload(payload.model_dump(exclude_unset=True))
+    if "slug" in cleaned:
+        other = crud_doc.get_course_doc_by_slug(db, course_id=course_id, slug=cleaned["slug"])
+        if other and other.id != doc_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该课程的 slug 已存在")
+    for key, value in cleaned.items():
+        setattr(doc, key, value)
+    db.commit()
+    db.refresh(doc)
+    return CourseDocRead.model_validate(doc)
+
+
+@router.delete("/courses/{course_id}/docs/{doc_id}")
+def delete_admin_course_doc(course_id: int, doc_id: int, db: DBSession, admin_user: CurrentAdmin) -> dict:
+    _ = admin_user
+    doc = crud_doc.get_course_doc(db, course_id=course_id, doc_id=doc_id)
+    if not doc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程文档不存在")
+    db.delete(doc)
+    db.commit()
+    return {"id": doc_id, "message": "课程文档已删除"}
 
 
 @router.delete("/courses/{course_id}")
@@ -124,9 +223,10 @@ def create_admin_module(course_id: int, payload: CourseModuleCreate, db: DBSessi
     _ = admin_user
     if course_id != payload.course_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="course_id 不一致")
+    if not crud_course.get_course(db, course_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
     created = crud_course.create_module(db, payload.model_dump())
-    item = crud_course.list_modules(db, course_id=course_id, include_unpublished=True)[-1]
-    item["id"] = created.id
+    item = next(row for row in crud_course.list_modules(db, course_id=course_id, include_unpublished=True) if row["id"] == created.id)
     return CourseModuleRead.model_validate(item)
 
 
@@ -135,6 +235,12 @@ def create_admin_task(course_id: int, payload: CourseTaskCreate, db: DBSession, 
     _ = admin_user
     if course_id != payload.course_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="course_id 不一致")
+    if not crud_course.get_course(db, course_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="课程不存在")
+    if payload.module_id is not None:
+        module = db.get(CourseModule, payload.module_id)
+        if not module or module.course_id != course_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="章节不属于当前课程")
     created = crud_course.create_task(db, payload.model_dump())
     item = crud_course.get_task_read(db, task_id=created.id)
     return CourseTaskRead.model_validate(item)
@@ -148,6 +254,10 @@ def update_admin_task(task_id: int, payload: CourseTaskUpdate, db: DBSession, ad
     task = db.get(CourseTask, task_id)
     if not task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="任务不存在")
+    if payload.module_id is not None:
+        module = db.get(CourseModule, payload.module_id)
+        if not module or module.course_id != task.course_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="章节不属于当前课程")
     crud_course.update_task(db, task, payload.model_dump(exclude_unset=True))
     item = crud_course.get_task_read(db, task_id=task_id)
     return CourseTaskRead.model_validate(item)

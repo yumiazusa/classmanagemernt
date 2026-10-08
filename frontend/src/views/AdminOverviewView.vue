@@ -29,7 +29,7 @@
           </div>
           <div class="stat-card">
             <span>课程总数</span>
-            <strong>{{ overview.course_count ?? overview.experiment_count }}</strong>
+            <strong>{{ overview.course_count }}</strong>
           </div>
           <div class="stat-card good">
             <span>启用账号数</span>

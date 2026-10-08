@@ -2,7 +2,7 @@
   <section class="admin-docs-page">
     <article class="panel head-panel">
       <h2>文档管理</h2>
-      <p>管理教学文档（新建、编辑、删除、发布控制）。</p>
+      <p>管理平台指南和管理员手册。课程文档请到对应课程的编辑页维护。</p>
     </article>
 
     <article class="panel filter-panel">
@@ -10,7 +10,7 @@
         <input v-model.trim="filters.keyword" type="text" placeholder="搜索标题 / 摘要 / 正文" />
         <select v-model="filters.category">
           <option value="all">全部分类</option>
-          <option v-for="item in categories" :key="item" :value="item">{{ item }}</option>
+          <option v-for="item in platformCategories" :key="item" :value="item">{{ item }}</option>
         </select>
         <button type="button" class="btn primary" :disabled="isLoading" @click="loadDocs">查询</button>
       </div>
@@ -60,7 +60,7 @@
         <div class="form-grid">
           <label class="field">
             <span>标题</span>
-            <input v-model.trim="form.title" type="text" placeholder="例如：课程配置说明" />
+            <input ref="titleInput" v-model.trim="form.title" type="text" placeholder="例如：课程配置说明" />
           </label>
           <label class="field">
             <span>slug</span>
@@ -68,12 +68,9 @@
           </label>
           <label class="field">
             <span>分类</span>
-            <input
-              v-model.trim="form.category"
-              type="text"
-              list="doc-category-options"
-              placeholder="选择已有分类或输入新分类"
-            />
+            <select v-model="form.category">
+              <option v-for="item in platformCategories" :key="item" :value="item">{{ item }}</option>
+            </select>
           </label>
           <label class="field">
             <span>排序号</span>
@@ -95,10 +92,6 @@
           <textarea v-model="form.content" rows="16" placeholder="# 标题\n\n正文内容"></textarea>
         </label>
 
-        <datalist id="doc-category-options">
-          <option v-for="item in categories" :key="`cat-${item}`" :value="item"></option>
-        </datalist>
-
         <div class="form-actions">
           <button type="button" class="btn plain" @click="resetForm">重置</button>
           <button type="button" class="btn primary" :disabled="isSaving" @click="submitForm">
@@ -111,18 +104,18 @@
 </template>
 
 <script setup>
-import { onMounted, reactive, ref } from "vue";
+import { nextTick, onMounted, reactive, ref } from "vue";
 
 import {
   createAdminDoc,
   deleteAdminDoc,
-  getAdminDocCategories,
   getAdminDocs,
   updateAdminDoc,
 } from "../api/admin";
 
 const docs = ref([]);
-const categories = ref([]);
+const platformCategories = ["平台指南", "管理员手册"];
+const titleInput = ref(null);
 const isLoading = ref(false);
 const isSaving = ref(false);
 const editingId = ref(0);
@@ -138,7 +131,7 @@ const filters = reactive({
 const initialForm = {
   title: "",
   slug: "",
-  category: "",
+  category: "平台指南",
   sort_order: 0,
   is_published: true,
   summary: "",
@@ -157,15 +150,18 @@ function resetForm() {
   editingId.value = 0;
 }
 
-function startCreate() {
+async function startCreate() {
   resetForm();
+  setMessage("");
+  await nextTick();
+  titleInput.value?.focus();
 }
 
 function startEdit(item) {
   editingId.value = item.id;
   form.title = item.title || "";
   form.slug = item.slug || "";
-  form.category = item.category || "";
+  form.category = platformCategories.includes(item.category) ? item.category : "平台指南";
   form.sort_order = Number.isFinite(Number(item.sort_order)) ? Number(item.sort_order) : 0;
   form.is_published = Boolean(item.is_published);
   form.summary = item.summary || "";
@@ -176,7 +172,7 @@ function buildPayload() {
   return {
     title: form.title.trim(),
     slug: form.slug.trim(),
-    category: form.category.trim() || "未分类",
+    category: form.category,
     sort_order: Number.isFinite(Number(form.sort_order)) ? Number(form.sort_order) : 0,
     is_published: Boolean(form.is_published),
     summary: form.summary.trim() || null,
@@ -184,17 +180,9 @@ function buildPayload() {
   };
 }
 
-async function loadCategories() {
-  try {
-    categories.value = await getAdminDocCategories();
-  } catch (error) {
-    categories.value = [];
-  }
-}
-
-async function loadDocs() {
+async function loadDocs({ clearMessage = true } = {}) {
   isLoading.value = true;
-  setMessage("");
+  if (clearMessage) setMessage("");
   try {
     docs.value = await getAdminDocs({
       keyword: filters.keyword,
@@ -233,8 +221,7 @@ async function submitForm() {
       await createAdminDoc(payload);
       setMessage("文档创建成功");
     }
-    await loadCategories();
-    await loadDocs();
+    await loadDocs({ clearMessage: false });
     resetForm();
   } catch (error) {
     setMessage(`保存失败：${error.message}`, true);
@@ -252,7 +239,7 @@ async function togglePublished(item) {
   try {
     await updateAdminDoc(item.id, { is_published: !item.is_published });
     setMessage(`${action}成功`);
-    await loadDocs();
+    await loadDocs({ clearMessage: false });
   } catch (error) {
     setMessage(`${action}失败：${error.message}`, true);
   }
@@ -269,15 +256,13 @@ async function removeDoc(item) {
     if (editingId.value === item.id) {
       resetForm();
     }
-    await loadCategories();
-    await loadDocs();
+    await loadDocs({ clearMessage: false });
   } catch (error) {
     setMessage(`删除失败：${error.message}`, true);
   }
 }
 
 onMounted(async () => {
-  await loadCategories();
   await loadDocs();
 });
 </script>
@@ -420,6 +405,7 @@ onMounted(async () => {
 
 
 .field input,
+.field select,
 .field textarea {
   border: 1px solid var(--border-strong);
   border-radius: 8px;

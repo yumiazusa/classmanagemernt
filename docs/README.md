@@ -1,11 +1,9 @@
 # 文档目录
 
-该目录用于存放平台建设过程中的文档资料。
+V1.0 正式文档：
 
-第一阶段建议保留如下文档方向：
-
-- 系统架构说明
-- API 设计说明
-- 数据库设计说明
-- 教学实验流程说明
-- Codex 协同开发说明
+- [技术文档](TECHNICAL_V1.0.md)
+- [部署文档](DEPLOYMENT_V1.0.md)
+- [版本与分支管理](VERSION_CONTROL.md)
+- [课程模块接入指南](COURSE_MODULE_EXTENSION_GUIDE.md)
+- [Codex 多设备协作](CODEX_COLLABORATION.md)

@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import { getAccessToken, getStoredCurrentUser, restoreSession } from "../api/auth";
 import { platformConfig } from "../config/platform";
-import CourseDetailView from "../views/CourseDetailView.vue";
 import CourseListView from "../views/CourseListView.vue";
 import DocsView from "../views/DocsView.vue";
 import TaskDetailView from "../views/TaskDetailView.vue";
@@ -19,6 +18,10 @@ import AdminTeachersView from "../views/AdminTeachersView.vue";
 import AdminAdminUsersView from "../views/AdminAdminUsersView.vue";
 import AdminDocsView from "../views/AdminDocsView.vue";
 import AdminCoursesView from "../views/AdminCoursesView.vue";
+import AdminCourseWorkspaceView from "../views/AdminCourseWorkspaceView.vue";
+import AdminCourseDocsView from "../views/AdminCourseDocsView.vue";
+import CourseExperienceView from "../views/CourseExperienceView.vue";
+import CourseDocsView from "../views/CourseDocsView.vue";
 import AdminClassStudentsView from "../views/AdminClassStudentsView.vue";
 import AdminClassStudentImportView from "../views/AdminClassStudentImportView.vue";
 import AdminClassesView from "../views/AdminClassesView.vue";
@@ -32,7 +35,7 @@ const routes = [
   },
   {
     path: "/",
-    redirect: "/courses",
+    meta: { requiresAuth: true },
   },
   {
     path: "/courses",
@@ -41,9 +44,15 @@ const routes = [
     meta: { requiresAuth: true },
   },
   {
-    path: "/courses/:id",
-    name: "course-detail",
-    component: CourseDetailView,
+    path: "/courses/:id/experience",
+    name: "course-experience",
+    component: CourseExperienceView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: "/courses/:id/docs",
+    name: "course-docs",
+    component: CourseDocsView,
     meta: { requiresAuth: true },
   },
   {
@@ -84,7 +93,12 @@ const routes = [
   },
   {
     path: "/teacher/submissions",
-    name: "teacher-submissions",
+    component: TeacherSubmissionReviewView,
+    meta: { requiresAuth: true, requiresTeacher: true },
+  },
+  {
+    path: "/teacher/courses/:id/submissions",
+    name: "teacher-course-submissions",
     component: TeacherSubmissionReviewView,
     meta: { requiresAuth: true, requiresTeacher: true },
   },
@@ -95,8 +109,20 @@ const routes = [
     meta: { requiresAuth: true, requiresTeacher: true },
   },
   {
+    path: "/teacher/courses/:id/students/import",
+    name: "teacher-course-student-import",
+    component: TeacherStudentImportView,
+    meta: { requiresAuth: true, requiresTeacher: true },
+  },
+  {
     path: "/teacher/students",
     name: "teacher-students",
+    component: TeacherStudentManageView,
+    meta: { requiresAuth: true, requiresTeacher: true },
+  },
+  {
+    path: "/teacher/courses/:id/students",
+    name: "teacher-course-students",
     component: TeacherStudentManageView,
     meta: { requiresAuth: true, requiresTeacher: true },
   },
@@ -128,6 +154,18 @@ const routes = [
     path: "/admin/courses",
     name: "admin-courses",
     component: AdminCoursesView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/admin/courses/:id",
+    name: "admin-course-workspace",
+    component: AdminCourseWorkspaceView,
+    meta: { requiresAuth: true, requiresAdmin: true },
+  },
+  {
+    path: "/admin/courses/:id/docs",
+    name: "admin-course-docs",
+    component: AdminCourseDocsView,
     meta: { requiresAuth: true, requiresAdmin: true },
   },
   {
@@ -174,7 +212,7 @@ function resolveDefaultHome(user) {
   if (role === "admin") {
     return platformConfig.defaultHomeByRole.admin;
   }
-  return platformConfig.defaultHomeByRole[role] || "/courses";
+  return platformConfig.defaultHomeByRole[role] || platformConfig.defaultHomeByRole.student;
 }
 
 function normalizeRedirectTarget(target) {
@@ -231,6 +269,14 @@ router.beforeEach(async (to) => {
 
   if (currentUser.must_change_password && !to.meta.allowWhenMustChange) {
     return { path: "/change-password" };
+  }
+
+  if (to.path === "/") {
+    return { path: resolveDefaultHome(currentUser) };
+  }
+
+  if (currentUser.role === "teacher" && to.path === "/courses") {
+    return { path: "/teacher/courses" };
   }
 
   if (to.meta.requiresTeacher && currentUser.role !== "teacher") {

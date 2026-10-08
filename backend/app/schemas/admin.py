@@ -10,7 +10,6 @@ class AdminOverviewRead(BaseModel):
     teacher_count: int
     admin_count: int
     course_count: int = 0
-    experiment_count: int
     enabled_user_count: int
     disabled_user_count: int
     recent_created_users_count: int

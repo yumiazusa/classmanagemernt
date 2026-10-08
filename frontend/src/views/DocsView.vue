@@ -2,8 +2,8 @@
   <section class="docs-page">
     <article class="card top-card">
       <div>
-        <h2>平台资料</h2>
-        <p>浏览平台指南、课程配置说明和教学资料。</p>
+        <h2>文档浏览</h2>
+        <p>{{ isAdmin ? "浏览平台指南和管理员手册。" : "浏览平台使用指南。" }}</p>
       </div>
       <form class="search-row" @submit.prevent="handleSearch">
         <input v-model.trim="keyword" type="text" placeholder="搜索标题 / 摘要 / 正文" />
@@ -37,7 +37,7 @@
 
       <main class="doc-content">
         <header class="doc-head">
-          <h3>{{ docDetail?.title || "平台资料" }}</h3>
+          <h3>{{ docDetail?.title || "文档浏览" }}</h3>
           <span>{{ docDetail?.updated_at ? `更新时间：${formatTime(docDetail.updated_at)}` : "" }}</span>
         </header>
         <p v-if="detailError" class="content-error">{{ detailError }}</p>
@@ -57,6 +57,7 @@ import sqlLang from "highlight.js/lib/languages/sql";
 import "highlight.js/styles/github.css";
 
 import { getDocBySlug, getDocCategories, getDocs } from "../api/docs";
+import { getStoredCurrentUser } from "../api/auth";
 import { formatApiDateTime } from "../utils/datetime";
 
 hljs.registerLanguage("javascript", javascriptLang);
@@ -73,6 +74,8 @@ const md = new MarkdownIt({
     return `<pre class="hljs"><code>${md.utils.escapeHtml(code)}</code></pre>`;
   },
 });
+
+const isAdmin = getStoredCurrentUser()?.role === "admin";
 
 const keyword = ref("");
 const categoryFilter = ref("all");
@@ -99,7 +102,7 @@ const catalogGroups = computed(() => {
 
 const renderedHtml = computed(() => {
   if (!docDetail.value) {
-    return md.render("# 欢迎使用平台资料\n\n请从左侧选择一篇资料。");
+    return md.render("# 欢迎浏览文档\n\n请从左侧选择一篇文档。");
   }
   return md.render(docDetail.value.content || "暂无内容");
 });

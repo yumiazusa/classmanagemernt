@@ -1,5 +1,10 @@
 import request from "./request";
 
+export async function getCourseDocs(courseId) {
+  const { data } = await request.get(`/courses/${courseId}/docs`);
+  return data;
+}
+
 export async function getCourses() {
   const { data } = await request.get("/courses");
   return data;

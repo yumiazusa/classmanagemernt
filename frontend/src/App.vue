@@ -9,9 +9,6 @@
       </div>
       <div v-if="!isLoginPage" ref="navRef" :class="['header-right', mobileNavOpen ? 'open' : '']">
         <nav class="nav">
-          <RouterLink v-if="isStudent" class="nav-rect-btn" to="/courses">我的课程</RouterLink>
-          <RouterLink v-if="isStudent" class="nav-rect-btn" to="/dashboard">个人主页</RouterLink>
-
           <template v-if="isAdmin">
             <div class="admin-nav-group">
               <RouterLink class="nav-rect-btn" to="/admin" @click="handleNavLinkClick">后台首页</RouterLink>
@@ -53,25 +50,40 @@
                   :class="['nav-drop-trigger', openMenu === 'docs' || docsGroupActive ? 'active' : '']"
                   @click.stop="toggleMenu('docs')"
                 >
-                  资料管理
+                  文档管理
                   <span :class="['caret', openMenu === 'docs' ? 'open' : '']">▾</span>
                 </button>
                 <div v-if="openMenu === 'docs'" class="dropdown-menu">
-                  <RouterLink to="/admin/docs" @click="handleNavLinkClick">平台文档管理</RouterLink>
-                  <RouterLink to="/docs" @click="handleNavLinkClick">平台资料</RouterLink>
+                  <RouterLink to="/admin/docs" @click="handleNavLinkClick">文档管理</RouterLink>
+                  <RouterLink to="/docs" @click="handleNavLinkClick">文档浏览</RouterLink>
                 </div>
               </div>
             </div>
           </template>
 
-          <template v-else>
+          <template v-else-if="isStudent">
+            <RouterLink class="nav-rect-btn" to="/dashboard" @click="handleNavLinkClick">个人主页</RouterLink>
             <RouterLink class="nav-rect-btn" to="/courses" @click="handleNavLinkClick">我的课程</RouterLink>
-            <RouterLink class="nav-rect-btn" to="/docs" @click="handleNavLinkClick">平台资料</RouterLink>
+            <RouterLink class="nav-rect-btn" to="/docs" @click="handleNavLinkClick">文档浏览</RouterLink>
           </template>
 
-          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/courses" @click="handleNavLinkClick">课程看板</RouterLink>
-          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/students" @click="handleNavLinkClick">学生管理</RouterLink>
-          <RouterLink v-if="isTeacher" class="nav-rect-btn" to="/teacher/submissions" @click="handleNavLinkClick">提交批阅</RouterLink>
+          <template v-if="isTeacher">
+            <div class="nav-dropdown">
+              <button
+                type="button"
+                :class="['nav-drop-trigger', openMenu === 'teacherCourses' || teacherCoursesGroupActive ? 'active' : '']"
+                @click.stop="toggleMenu('teacherCourses')"
+              >
+                课程管理
+                <span :class="['caret', openMenu === 'teacherCourses' ? 'open' : '']">▾</span>
+              </button>
+              <div v-if="openMenu === 'teacherCourses'" class="dropdown-menu">
+                <RouterLink to="/teacher/courses" @click="handleNavLinkClick">课程看板</RouterLink>
+                <RouterLink to="/teacher/students" @click="handleNavLinkClick">学生管理</RouterLink>
+              </div>
+            </div>
+            <RouterLink class="nav-rect-btn" to="/docs" @click="handleNavLinkClick">技术文档</RouterLink>
+          </template>
         </nav>
         <div v-if="isLoggedIn" class="session-area">
           <div class="account-dropdown">
@@ -122,6 +134,7 @@ const mobileNavOpen = ref(false);
 const usersGroupActive = computed(() => ["/admin/users", "/admin/teachers", "/admin/admin-users"].includes(route.path));
 const docsGroupActive = computed(() => route.path === "/admin/docs" || route.path === "/docs");
 const coursesGroupActive = computed(() => route.path.startsWith("/admin/courses") || route.path.startsWith("/admin/classes") || route.path.startsWith("/courses"));
+const teacherCoursesGroupActive = computed(() => route.path.startsWith("/teacher/courses") || route.path.startsWith("/teacher/students") || route.path === "/teacher/student-import");
 const platformName = platformConfig.platformName;
 const userLabel = computed(() => {
   if (!currentUser.value) {

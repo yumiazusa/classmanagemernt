@@ -1,7 +1,7 @@
 export const platformConfig = {
-  platformName: "通用教学管理框架",
+  platformName: "LETS课程管理系统",
   defaultHomeByRole: {
-    student: "/courses",
+    student: "/dashboard",
     teacher: "/teacher/courses",
     admin: "/admin",
   },

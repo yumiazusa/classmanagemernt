@@ -3,7 +3,7 @@
     <article class="panel hero">
       <div>
         <h2>我的课程</h2>
-        <p>查看已开放课程，按模块进入学习任务。</p>
+        <p>进入已开放的课程模块。</p>
       </div>
       <RouterLink class="btn primary" to="/dashboard">个人主页</RouterLink>
     </article>
@@ -13,17 +13,14 @@
     <article v-else-if="courses.length === 0" class="panel">暂无可用课程</article>
 
     <div v-else class="course-grid">
-      <RouterLink v-for="course in courses" :key="course.id" class="course-card" :to="`/courses/${course.id}`">
+      <RouterLink v-for="course in courses" :key="course.id" class="course-card" :to="`/courses/${course.id}/experience`">
         <div class="course-mark" :style="{ background: course.cover_color || '#dbeafe' }"></div>
         <div class="course-main">
           <div class="course-head">
             <h3>{{ course.title }}</h3>
-            <span class="status">{{ courseStatusLabels[course.status] || course.status }}</span>
+            <span class="status">{{ courseExperiences[course.experience_key]?.label || "课程模块" }}</span>
           </div>
-          <p>{{ course.summary || "暂无课程简介" }}</p>
           <div class="meta-row">
-            <span>{{ course.module_count }} 个模块</span>
-            <span>{{ course.task_count }} 个任务</span>
             <span>{{ course.class_count }} 个班级</span>
           </div>
         </div>
@@ -36,12 +33,11 @@
 import { onMounted, ref } from "vue";
 
 import { getCourses } from "../api/course";
-import { platformConfig } from "../config/platform";
+import { courseExperiences } from "../course-experiences/registry";
 
 const courses = ref([]);
 const isLoading = ref(false);
 const errorMessage = ref("");
-const { courseStatusLabels } = platformConfig;
 
 async function loadCourses() {
   isLoading.value = true;

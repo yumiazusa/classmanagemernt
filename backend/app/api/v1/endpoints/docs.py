@@ -14,8 +14,9 @@ def list_docs(
     keyword: str = Query(default=""),
     category: str = Query(default=""),
 ) -> list[DocListItemRead]:
-    _ = current_user
-    docs = crud_doc.list_public_docs(db, keyword=keyword, category=category)
+    docs = crud_doc.list_public_docs(
+        db, keyword=keyword, category=category, include_admin_manual=current_user.role == "admin"
+    )
     return [DocListItemRead.model_validate(item) for item in docs]
 
 
@@ -24,8 +25,7 @@ def list_doc_categories(
     db: DBSession,
     current_user: CurrentUser,
 ) -> list[str]:
-    _ = current_user
-    return crud_doc.list_public_categories(db)
+    return crud_doc.list_public_categories(db, include_admin_manual=current_user.role == "admin")
 
 
 @router.get("/{slug}", response_model=DocRead)
@@ -34,8 +34,7 @@ def get_doc_by_slug(
     db: DBSession,
     current_user: CurrentUser,
 ) -> DocRead:
-    _ = current_user
     doc = crud_doc.get_public_doc_by_slug(db, slug=slug)
-    if not doc:
+    if not doc or (doc.category == "管理员手册" and current_user.role != "admin"):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文档不存在")
     return DocRead.model_validate(doc)

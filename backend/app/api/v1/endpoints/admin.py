@@ -40,6 +40,24 @@ from app.schemas.doc import (
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 
+def _clean_doc_payload(payload: dict) -> dict:
+    cleaned = payload.copy()
+    for field in ("title", "slug", "category", "content"):
+        if field in cleaned:
+            if cleaned[field] is None:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field} 不能为空")
+            cleaned[field] = cleaned[field].strip()
+            if not cleaned[field]:
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"{field} 不能为空")
+    if "summary" in cleaned and cleaned["summary"] is not None:
+        cleaned["summary"] = cleaned["summary"].strip() or None
+    return cleaned
+
+
+def _to_admin_doc_item(doc) -> AdminDocItemRead:
+    return AdminDocItemRead.model_validate(doc)
+
+
 @router.get("/overview", response_model=AdminOverviewRead)
 def get_admin_overview(db: DBSession, admin_user: CurrentAdmin) -> AdminOverviewRead:
     _ = admin_user

@@ -1,8 +1,9 @@
 from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.models.course import ClassGroup, ClassMember, Course, CourseClass, CourseTask, TaskSubmission
+from app.models.course import ClassGroup, ClassMember, Course, CourseClass, CourseExperience, CourseTask, TaskSubmission
 from app.models.user import User
+from app.services.course_experiences import EXPERIENCES
 
 
 def _latest_user_submissions_subquery(*, user_id: int):
@@ -17,7 +18,6 @@ def _latest_user_submissions_subquery(*, user_id: int):
             TaskSubmission.id.label("submission_id"),
             TaskSubmission.task_id.label("task_id"),
             TaskSubmission.status.label("latest_status"),
-            TaskSubmission.review_status.label("review_status"),
             TaskSubmission.updated_at.label("latest_updated_at"),
         )
         .join(
@@ -35,11 +35,13 @@ def _visible_course_ids_for_user(db: Session, user: User) -> list[int]:
         select(Course.id)
         .select_from(Course)
         .outerjoin(CourseClass, CourseClass.course_id == Course.id)
+        .join(CourseExperience, CourseExperience.course_id == Course.id)
         .outerjoin(ClassGroup, ClassGroup.id == CourseClass.class_group_id)
         .outerjoin(ClassMember, ClassMember.class_group_id == ClassGroup.id)
         .where(
             Course.is_active.is_(True),
             Course.status == "published",
+            CourseExperience.experience_key.in_(list(EXPERIENCES)),
             or_(ClassMember.user_id == user.id, ClassGroup.name == (user.class_name or "")),
         )
         .distinct()
@@ -71,9 +73,6 @@ def get_dashboard_payload(db: Session, *, user_id: int) -> dict | None:
         select(
             func.count(visible_tasks_subquery.c.task_id).label("total_tasks"),
             func.sum(case((latest_user_subquery.c.latest_status == "submitted", 1), else_=0)).label("submitted_count"),
-            func.sum(case((latest_user_subquery.c.review_status.in_(["reviewed", "passed"]), 1), else_=0)).label("reviewed_count"),
-            func.sum(case((latest_user_subquery.c.review_status == "returned", 1), else_=0)).label("returned_count"),
-            func.sum(case((latest_user_subquery.c.review_status == "pending", 1), else_=0)).label("pending_count"),
             func.sum(case((latest_user_subquery.c.submission_id.is_(None), 1), else_=0)).label("not_started_count"),
         )
         .select_from(visible_tasks_subquery)
@@ -89,7 +88,6 @@ def get_dashboard_payload(db: Session, *, user_id: int) -> dict | None:
             visible_tasks_subquery.c.course_title,
             visible_tasks_subquery.c.task_type,
             latest_user_subquery.c.latest_status,
-            latest_user_subquery.c.review_status,
             latest_user_subquery.c.latest_updated_at,
         )
         .select_from(latest_user_subquery)
@@ -112,9 +110,6 @@ def get_dashboard_payload(db: Session, *, user_id: int) -> dict | None:
             "total_courses": len(course_ids),
             "total_tasks": int(summary_row.total_tasks or 0),
             "submitted_count": int(summary_row.submitted_count or 0),
-            "reviewed_count": int(summary_row.reviewed_count or 0),
-            "returned_count": int(summary_row.returned_count or 0),
-            "pending_count": int(summary_row.pending_count or 0),
             "not_started_count": int(summary_row.not_started_count or 0),
         },
         "recent_items": [
@@ -125,7 +120,6 @@ def get_dashboard_payload(db: Session, *, user_id: int) -> dict | None:
                 "course_title": row.course_title,
                 "task_type": row.task_type,
                 "latest_status": row.latest_status,
-                "review_status": row.review_status or "pending",
                 "latest_updated_at": row.latest_updated_at,
             }
             for row in recent_rows

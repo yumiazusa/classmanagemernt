@@ -5,6 +5,36 @@ export async function getAdminCourses(params = {}) {
   return data;
 }
 
+export async function getAdminCourseExperiences() {
+  const { data } = await request.get("/admin/course-experiences");
+  return data;
+}
+
+export async function getAdminCourseWorkspace(courseId) {
+  const { data } = await request.get(`/admin/courses/${courseId}/workspace`);
+  return data;
+}
+
+export async function getAdminCourseDocs(courseId) {
+  const { data } = await request.get(`/admin/courses/${courseId}/docs`);
+  return data;
+}
+
+export async function createAdminCourseDoc(courseId, payload) {
+  const { data } = await request.post(`/admin/courses/${courseId}/docs`, payload);
+  return data;
+}
+
+export async function updateAdminCourseDoc(courseId, docId, payload) {
+  const { data } = await request.put(`/admin/courses/${courseId}/docs/${docId}`, payload);
+  return data;
+}
+
+export async function deleteAdminCourseDoc(courseId, docId) {
+  const { data } = await request.delete(`/admin/courses/${courseId}/docs/${docId}`);
+  return data;
+}
+
 export async function createAdminCourse(payload) {
   const { data } = await request.post("/admin/courses", payload);
   return data;

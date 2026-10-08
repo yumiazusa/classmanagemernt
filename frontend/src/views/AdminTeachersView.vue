@@ -135,11 +135,19 @@
         </div>
       </div>
     </article>
+    <PasswordResetDialog ref="passwordResetDialog" />
+    <AccountInfoDialog ref="accountInfoDialog" />
   </section>
 </template>
 
 <script setup>
+import AccountInfoDialog from "../components/AccountInfoDialog.vue";
+import PasswordResetDialog from "../components/PasswordResetDialog.vue";
+
 import { computed, onMounted, reactive, ref } from "vue";
+
+const passwordResetDialog = ref(null);
+const accountInfoDialog = ref(null);
 
 import {
   createAdminTeacher,
@@ -324,26 +332,16 @@ async function handleToggleEnabled(item, targetEnabled) {
   }
 }
 
-async function handleResetPassword(item) {
+function handleResetPassword(item) {
+  passwordResetDialog.value.open({
+    target: `账号：${item.username}`,
+    onSubmit: (newPassword) => submitHandleResetPassword(item, newPassword),
+  });
+}
+
+async function submitHandleResetPassword(item, newPassword) {
   actionMessage.value = "";
   actionError.value = false;
-
-  const raw = window.prompt(`请输入 ${item.username} 的新密码（至少6位）`, "123456");
-  if (raw === null) {
-    return;
-  }
-  const newPassword = raw.trim();
-  if (newPassword.length < 6) {
-    actionMessage.value = "新密码长度不能少于 6 位";
-    actionError.value = true;
-    return;
-  }
-
-  const confirmed = window.confirm(`确认将 ${item.username} 的密码重置为输入的新密码吗？`);
-  if (!confirmed) {
-    return;
-  }
-
   isLoading.value = true;
   try {
     await resetAdminUserPassword(item.user_id, { new_password: newPassword });
@@ -352,47 +350,33 @@ async function handleResetPassword(item) {
   } catch (error) {
     actionMessage.value = `重置密码失败：${error.message}`;
     actionError.value = true;
+    throw error;
   } finally {
     isLoading.value = false;
   }
 }
 
-async function handleUpdateInfo(item) {
+function handleUpdateInfo(item) {
+  accountInfoDialog.value.open({
+    target: `账号：${item.username}`,
+    username: item.username,
+    full_name: item.full_name,
+    onSubmit: (payload) => submitUpdateInfo(item, payload),
+  });
+}
+
+async function submitUpdateInfo(item, payload) {
   actionMessage.value = "";
   actionError.value = false;
-
-  const rawUsername = window.prompt(`请输入 ${item.username} 的新用户名（至少3位）`, item.username || "");
-  if (rawUsername === null) {
-    return;
-  }
-  const username = rawUsername.trim();
-  if (username.length < 3) {
-    actionMessage.value = "用户名长度不能少于 3 位";
-    actionError.value = true;
-    return;
-  }
-
-  const rawFullName = window.prompt(`请输入 ${item.username} 的姓名（可留空）`, item.full_name || "");
-  if (rawFullName === null) {
-    return;
-  }
-  const fullName = rawFullName.trim();
-  const confirmed = window.confirm(`确认更新教师账号 ${item.username} 的信息吗？`);
-  if (!confirmed) {
-    return;
-  }
-
   isLoading.value = true;
   try {
-    await updateAdminUserInfo(item.user_id, {
-      username,
-      full_name: fullName || null,
-    });
+    await updateAdminUserInfo(item.user_id, payload);
     actionMessage.value = "教师信息更新成功";
     await loadTeachers();
   } catch (error) {
     actionMessage.value = `信息更新失败：${error.message}`;
     actionError.value = true;
+    throw error;
   } finally {
     isLoading.value = false;
   }

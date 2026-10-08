@@ -1,7 +1,7 @@
 <template>
   <section class="page">
     <article v-if="task" class="panel">
-      <RouterLink class="back-link" :to="`/courses/${task.course_id}`">返回课程</RouterLink>
+      <RouterLink class="back-link" :to="`/courses/${task.course_id}/experience`">返回课程</RouterLink>
       <div class="task-head">
         <div>
           <h2>{{ task.title }}</h2>
