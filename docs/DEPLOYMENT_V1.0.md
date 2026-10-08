@@ -10,10 +10,10 @@
 git clone git@github.com:yumiazusa/classmanagemernt.git /opt/lets
 cd /opt/lets
 git fetch --tags origin
-git checkout --detach v1.0
+git checkout --detach refs/tags/v1.0
 ```
 
-服务器若跟踪最新已发布版本，可检出 `main` 并在发版后执行 `git pull --ff-only origin main`；固定标签便于精确回滚。
+`v1.0.1` 是仅增加二次开发文档的修订版，新项目建议检出 `refs/tags/v1.0.1`。服务器若跟踪最新已发布版本，可检出 `main` 并在发版后执行 `git pull --ff-only origin main`；固定标签便于精确回滚。
 
 ## 2. 数据库
 

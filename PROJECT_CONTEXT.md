@@ -6,7 +6,7 @@
 
 本项目定位为通用教学管理底座。当前不预装标准课程或学科课程模块，不兼容旧数据库。
 
-V1.0 发布资料见 `docs/TECHNICAL_V1.0.md`、`docs/DEPLOYMENT_V1.0.md` 和 `docs/VERSION_CONTROL.md`。
+V1.0 发布资料见 `docs/TECHNICAL_V1.0.md`、`docs/DEPLOYMENT_V1.0.md`、`docs/VERSION_CONTROL.md`；二次开发和上游升级见 `docs/DOWNSTREAM_UPDATE_GUIDE.md`。
 
 目标是提供一个可扩展的教学基础平台：
 
@@ -108,3 +108,4 @@ V1.0 发布资料见 `docs/TECHNICAL_V1.0.md`、`docs/DEPLOYMENT_V1.0.md` 和 `d
 ## 当前进度
 
 - 2026-10-08：整理 LETS课程管理系统 V1.0 品牌、技术文档、部署文档和版本管理方案；本地演示库保留原 `admin`，重建为两名教师、八名学生、两个班级、两门未连接示例课程与课程文档。
+- 2026-10-08：补充二次开发与上游版本更新规范，明确从固定标签建下游仓库、升级分支合并及数据库迁移检查。

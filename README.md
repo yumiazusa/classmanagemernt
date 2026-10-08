@@ -64,3 +64,4 @@ npm run dev
 - [docs/TECHNICAL_V1.0.md](docs/TECHNICAL_V1.0.md)：V1.0 技术架构与功能边界
 - [docs/DEPLOYMENT_V1.0.md](docs/DEPLOYMENT_V1.0.md)：生产部署、验证与回滚
 - [docs/VERSION_CONTROL.md](docs/VERSION_CONTROL.md)：分支、版本发布与多设备同步
+- [docs/DOWNSTREAM_UPDATE_GUIDE.md](docs/DOWNSTREAM_UPDATE_GUIDE.md)：二次开发项目的起步规范与上游升级流程
